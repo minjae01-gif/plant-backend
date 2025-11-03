@@ -39,4 +39,5 @@ void loop() {
     http.end();
   }
   delay(3000);
+  delay(3000); //딜레이 추가해보기
 }
