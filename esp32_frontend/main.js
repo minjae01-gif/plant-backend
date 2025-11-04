@@ -77,42 +77,93 @@ function handleDeletePost(postId) {
 }
 
 // 로그인 폼 이벤트
-document.getElementById('loginForm').addEventListener('submit', (e) => {
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const id = document.getElementById('loginId').value;
     const password = document.getElementById('loginPassword').value;
     
     const result = authManager.login(id, password);
-    
-    if (result.success) {
-        closeModal('loginModal');
-        updateUI();
-        e.target.reset();
-    } else {
-        const errorDiv = document.getElementById('loginError');
-        errorDiv.textContent = result.message;
+    const errorDiv = document.getElementById('loginError');
+
+    try {
+        const response = await fetch('http://localhost:8080/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: id,
+                password: password
+            })
+        });
+        // server.js 에서 json 꺼내기
+        const result = await response.json();
+
+        if (response.ok) { //server.js 의 res.status(200)
+
+            authManager.currentUser = result.user; 
+            localStorage.setItem('currentUser', JSON.stringify(result.user));
+
+            alert(result.message);
+            closeModal('loginModal');
+            updateUI();
+            e.target.reset();
+        } else {
+            errorDiv.textContent = result.message; //server.js 의 401같은 실패 메세지
+            errorDiv.style.display = 'block';
+        }
+    } catch(err) {
+        console.error('로그인 요청 실패', err);
+        errorDiv.textContent = '서버에 연결할 수 없습니다.';
         errorDiv.style.display = 'block';
     }
+        
+    
 });
 
 // 회원가입 폼 이벤트
-document.getElementById('signupForm').addEventListener('submit', (e) => {
-    e.preventDefault();
+document.getElementById('signupForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); // 폼의 기본 동작(새로고침) 방지
     
+    // 폼에서 값 가져오기
     const id = document.getElementById('signupId').value;
     const password = document.getElementById('signupPassword').value;
     const nickname = document.getElementById('signupNickname').value;
     
-    const result = authManager.signup(id, password, nickname);
+    const errorDiv = document.getElementById('signupError');
     
-    if (result.success) {
-        alert(result.message);
-        closeModal('signupModal');
-        e.target.reset();
-    } else {
-        const errorDiv = document.getElementById('signupError');
-        errorDiv.textContent = result.message;
+    try {
+        // 백엔드 서버로 네트워크 요청 보내기
+        const response = await fetch('http://localhost:8080/api/signup', {
+            method: 'POST', 
+            headers: {
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({ // JavaScript 객체를 JSON 문자열로 변환
+                username: id,
+                password: password,
+                nickname: nickname
+            })
+        });
+
+        // 서버로부터 응답(JSON) 받기
+        const result = await response.json();
+
+        // 서버 응답에 따라 결과 처리
+        if (response.ok) { // HTTP 상태 코드가 200-299일 때 (성공)
+            alert(result.message); // "회원가입이 완료되었습니다!"
+            closeModal('signupModal');
+            e.target.reset(); // 폼 초기화
+        } else { // 서버가 오류를 보냈을 때 (예: 아이디 중복)
+            errorDiv.textContent = result.message; // "이미 존재하는 아이디입니다."
+            errorDiv.style.display = 'block';
+        }
+        
+    } catch (err) {
+        // 네트워크 오류 등 (예: 백엔드 서버가 꺼져있을 때)
+        console.error('회원가입 요청 실패:', err);
+        errorDiv.textContent = '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.';
         errorDiv.style.display = 'block';
     }
 });
