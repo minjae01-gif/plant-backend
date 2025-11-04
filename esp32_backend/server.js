@@ -23,10 +23,12 @@ app.get('/', (req, res) => {
 
 // 회원가입
 app.post('/api/signup', async (req, res) => {
-    console.log('회원가입 요청 받음:', req.body);
+
+    const { username, password, nickname } = req.body;
+    console.log(`회원가입 요청 받음: username=${username}, nickname=${nickname}`);
     
     // 프론트엔드 정보 가져오기
-    const { username, password, nickname } = req.body;
+    
     // 비밀번호 암호화하기
     const hashedPassword = await bcrypt.hash(password, 10);
     
@@ -53,10 +55,12 @@ app.post('/api/signup', async (req, res) => {
 });
 
 app.post('/api/login', async (req, res) => {
-    console.log('로그인 요청 받음', req.body);
 
-    // 입력한 정보 가져옴
+    // 입력한 정보 가져오기
     const { username, password } = req.body;
+
+    console.log(`로그인 요청 받음: username=${username}`);
+
     // 입력한 username 찾기
     const sql = "SELECT * FROM users WHERE username = ? ";
 

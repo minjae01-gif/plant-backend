@@ -83,7 +83,6 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const id = document.getElementById('loginId').value;
     const password = document.getElementById('loginPassword').value;
     
-    const result = authManager.login(id, password);
     const errorDiv = document.getElementById('loginError');
 
     try {
