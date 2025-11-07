@@ -1,24 +1,18 @@
 const express = require('express');
-const mysql = require('mysql2');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
+
+//db.js 에서 pool 객체를 가져와 db에 넣기
+const db = require('./db.js');
+
 const app = express();
 const PORT = 8080;
 
 app.use(cors());
 app.use(express.json());
 
-
-const db = mysql.createPool({
-    host: 'localhost',    
-    user: 'root',          
-    password: '0000', 
-    database: 'TEST'        
-}).promise();
-
-
 app.get('/', (req, res) => {
-    res.send('Hello, World! ');
+    res.send('잘 작동중입니다 ');
 });
 
 // 회원가입
@@ -104,7 +98,6 @@ app.post('/api/login', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`백엔드 서버가 http://localhost:${PORT} 에서 실행 중입니다.`);
-    console.log('MySQL DB에 연결을 시도합니다.');
 
     // 서버 시작 시 DB 연결 테스트
     db.getConnection()
@@ -114,6 +107,5 @@ app.listen(PORT, () => {
         })
         .catch(err => {
             console.error('MySQL DB 연결 실패:', err.message);
-            console.log('DB 설정(password, user, database)을 확인해주세요.');
         });
 });
