@@ -4,7 +4,11 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
+// uploads 폴더의 절대 경로를 미리 정의합니다.
+// (__dirname은 'routes' 폴더, '..'로 'backend' 폴더, 'uploads'로 최종 경로)
+const uploadsDir = path.join(__dirname, '..', 'uploads');
 // JWT 검증 미들웨어
 const verifyToken = (req, res, next) => {
   const token = req.headers['authorization']?.split(' ')[1];
@@ -31,6 +35,11 @@ const verifyToken = (req, res, next) => {
 // 이미지 업로드 설정
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
+    // 'uploads' 폴더가 있는지 확인
+    if (!fs.existsSync(uploadsDir)) {
+      // 없으면 폴더를 생성합니다. (mkdirSync)
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
     cb(null, 'uploads/');  // uploads 폴더에 저장
   },
   filename: function (req, file, cb) {
