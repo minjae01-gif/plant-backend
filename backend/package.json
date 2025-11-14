@@ -2,10 +2,10 @@
   "name": "plant-community-backend",
   "version": "1.0.0",
   "description": "Backend for Plant Community App",
-  "main": "server.js",
+  "main": "backend_server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node backend_server.js",
+    "dev": "nodemon backend_server.js"
   },
   "keywords": [
     "plant",
