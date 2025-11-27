@@ -123,3 +123,5 @@ app.listen(PORT, () => {
   console.log('📌 Front → Server : GET /api/sensor/latest');
   console.log('📌 Front → Server : POST /api/command');
 });
+
+module.exports = app;
