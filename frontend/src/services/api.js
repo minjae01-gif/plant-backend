@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000';
+const API_URL = process.env.NODE_ENV === 'production'
 
 // Axios 인스턴스 생성
 const api = axios.create({
