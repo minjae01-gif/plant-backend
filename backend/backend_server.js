@@ -93,6 +93,34 @@ app.use('/api/posts', postRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 
 // =======================================
+// 🏠 루트 경로 핸들러
+// =======================================
+app.get('/', (req, res) => {
+  res.json({ 
+    success: true,
+    message: 'ESP32 Plant Monitoring API Server',
+    status: 'running',
+    version: '1.0.0',
+    endpoints: {
+      esp32: {
+        sendData: 'POST /sensor',
+        getCommand: 'GET /command'
+      },
+      frontend: {
+        getSensorData: 'GET /api/sensor/latest',
+        sendCommand: 'POST /api/command'
+      },
+      community: {
+        auth: '/api/auth/*',
+        posts: '/api/posts/*',
+        marketplace: '/api/marketplace/*',
+        comments: '/api/comments/*'
+      }
+    }
+  });
+});
+
+// =======================================
 // 🔌 DB 연결 테스트
 // =======================================
 const db = require('./config/db');
