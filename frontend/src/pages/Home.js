@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { Card, Row, Col, Typography, Button, List, Tag, Space, Avatar } from 'antd';
 import {
   RightOutlined,
@@ -8,6 +8,7 @@ import {
   UserOutlined,
   FireOutlined,
   ClockCircleOutlined,
+  BulbFilled,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -16,17 +17,28 @@ import Layout from '../components/Layout';
 
 const { Title, Text, Paragraph } = Typography;
 
+// 🌱 오늘의 팁 데이터 (랜덤 표시용)
+const GARDENING_TIPS = [
+  "물을 줄 때는 화분 배수구로 물이 흘러나올 때까지 흠뻑 주는 것이 좋습니다 🚿",
+  "잎에 분무질을 자주 해주면 공중 습도가 높아져 식물이 좋아해요 🌿",
+  "과습은 식물을 죽이는 가장 큰 원인입니다. 흙이 말랐는지 꼭 확인하세요! 💧",
+  "햇빛 방향으로 식물을 주기적으로 돌려주면 수형이 예쁘게 자랍니다 ☀️",
+  "분갈이는 보통 식물이 성장하기 시작하는 봄이나 가을에 하는 것이 좋아요 🪴",
+  "식물도 환기가 필요해요. 가끔 창문을 열어 신선한 바람을 쐬어주세요 🍃",
+  "시들한 잎은 바로바로 정리해주는 것이 병충해 예방에 좋습니다 ✂️"
+];
 function Home() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
   const [recentPosts, setRecentPosts] = useState([]);
   const [recentItems, setRecentItems] = useState([]);
   const [sensorData, setSensorData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [todayTip, setTodayTip] = useState('');
 
   useEffect(() => {
     fetchData();
+    setTodayTip(GARDENING_TIPS[Math.floor(Math.random() * GARDENING_TIPS.length)] );
   }, []);
 
   const fetchData = async () => {
@@ -78,16 +90,33 @@ function Home() {
 
   return (
     <Layout>
+           
       <div style={styles.container}>
         {/* 헤더 */}
         <div style={styles.header}>
           <Title level={2}>🌿 Plant Community</Title>
-          <Text type="secondary">식물을 사랑하는 사람들의 커뮤니티</Text>
+          <Text type="secondary">식물을 사랑하는 사람들의 소통공간</Text>
         </div>
 
         <Row gutter={[24, 24]} style={{ marginTop: '32px' }}>
-          {/* 왼쪽 컬럼 */}
+          {/* ======================= */}
+          {/* 왼쪽 메인 컬럼 (팁 + 게시글 + 거래글) */}
+          {/* ======================= */}
           <Col xs={24} lg={16}>
+            <Card style={styles.tipCard}>
+              <div style={styles.tipContent}>
+                <div>
+                  <Title level={4} style={{ color: '#fff', marginBottom: '8px' }}>
+                    <BulbFilled /> 오늘의 가드닝 팁
+                  </Title>
+                  <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: '16px' }}>
+                    {todayTip}
+                  </Text>
+                </div>
+                <BulbFilled style={styles.tipIconBg} />
+              </div>
+            </Card>
+
             {/* 최신 커뮤니티 글 */}
             <Card
               title={
@@ -376,6 +405,29 @@ const styles = {
   card: {
     borderRadius: '12px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+  },
+  // 팁 카드 스타일 추가
+  tipCard: {
+    borderRadius: '12px',
+    background: 'linear-gradient(135deg, #a8e063 0%, #56ab2f 100%)', // 초록 그라데이션
+    border: 'none',
+    boxShadow: '0 4px 15px rgba(86, 171, 47, 0.3)',
+    marginBottom: '24px',
+    overflow: 'hidden',
+  },
+  tipContent: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  tipIconBg: {
+    fontSize: '80px',
+    color: 'rgba(255, 255, 255, 0.2)', // 배경 장식용 아이콘
+    position: 'absolute',
+    right: '-10px',
+    bottom: '-20px',
+    transform: 'rotate(-20deg)',
   },
   listItem: {
     cursor: 'pointer',

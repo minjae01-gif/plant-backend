@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Card, Button, Space, Typography, Tag, Divider, 
-  Avatar, Row, Col, Spin, message, Statistic, Carousel 
+  Avatar, Row, Col, Spin, message, Statistic, Carousel, Modal
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -15,11 +15,13 @@ import {
   ShoppingOutlined,
   LeftOutlined,
   RightOutlined,
+  ShopOutlined,
 } from '@ant-design/icons';
-import { marketplaceAPI } from '../services/api';
+import { marketplaceAPI, tradeAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
 import Comments from '../components/Comments';
+import { MessageOutlined } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -32,6 +34,8 @@ function MarketplaceDetail() {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+
 
   useEffect(() => {
     fetchItem();
@@ -78,6 +82,43 @@ function MarketplaceDetail() {
     }
   };
 
+  
+  // 거래 요청 핸들러
+const handleTradeRequest = async () => {
+    if (!user) {
+      message.warning('로그인이 필요합니다.');
+      navigate('/login');
+      return;
+    }
+    
+    if (window.confirm('판매자에게 거래를 요청하시겠습니까?')) {
+      try {
+        const response = await tradeAPI.sendRequest(item.id, item.user_id);
+        
+        if (response.data.success) {
+          // ✅ 성공 알림 (초록색 토스트)
+          message.success('요청 되었습니다.');
+        }
+      } catch (error) {
+        if (error.response) {
+          if (error.response.status === 409) {
+            // ⚠️ 중복 경고 (화면 중앙 팝업)
+            // 이제 무조건 뜰 겁니다.
+            Modal.warning({
+              title: '알림',
+              content: '이미 구매 요청 했습니다.',
+            });
+          } else if (error.response.status === 400) {
+            message.error(error.response.data.message);
+          } else {
+            message.error('요청 중 오류가 발생했습니다.');
+          }
+        } else {
+          message.error('서버와 연결할 수 없습니다.');
+        }
+      }
+    }
+  };
   const formatPrice = (price) => {
     return new Intl.NumberFormat('ko-KR').format(price);
   };
@@ -308,7 +349,7 @@ function MarketplaceDetail() {
                 </div>
 
                 {/* 작성자 액션 버튼 */}
-                {isAuthor && (
+               {isAuthor ? (
                   <>
                     <Divider />
                     <Space wrap>
@@ -348,7 +389,29 @@ function MarketplaceDetail() {
                       </Button>
                     </Space>
                   </>
+                ) : (
+                  // 🔥 구매자일 때만 보이는 버튼
+                  <>
+                    <Divider />
+                    <Button 
+                      type="primary" 
+                      size="large" 
+                      icon={<ShopOutlined />}
+                      onClick={handleTradeRequest}
+                      disabled={item.status === 'sold'}
+                      block
+                      style={{ 
+                        height: '50px', 
+                        fontSize: '18px', 
+                        background: '#faad14', 
+                        borderColor: '#faad14' 
+                      }}
+                    >
+                      {item.status === 'sold' ? '판매 완료된 상품입니다' : '💬 판매자에게 거래 요청하기'}
+                    </Button>
+                  </>
                 )}
+
               </Space>
             </Col>
           </Row>

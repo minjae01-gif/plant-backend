@@ -1,28 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Card, Avatar, Typography, Descriptions, Spin, message, 
-  Divider, Tag, Button, Modal, Form, Input 
+  Divider, Tag, Button, Modal, Form, Input,List, Badge, Space
 } from 'antd';
 import { 
   UserOutlined, MailOutlined, ClockCircleOutlined, 
-  SafetyCertificateOutlined, LockOutlined 
+  SafetyCertificateOutlined, LockOutlined , NotificationOutlined
+  ,ArrowRightOutlined
 } from '@ant-design/icons';
-import { authAPI } from '../services/api';
+
+import { useNavigate } from 'react-router-dom';
+import { authAPI, tradeAPI } from '../services/api';
 import Layout from '../components/Layout';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 function MyPage() {
   const [userInfo, setUserInfo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [requests, setRequests] = useState([]);
   
   // 모달(팝업) 관련 상태
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [changeLoading, setChangeLoading] = useState(false);
   const [form] = Form.useForm();
 
+  const navigate = useNavigate();
   useEffect(() => {
     fetchMyInfo();
+    fetchRequests();
   }, []);
 
   const fetchMyInfo = async () => {
@@ -36,6 +42,17 @@ function MyPage() {
       message.error('정보를 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+    const fetchRequests = async () => {
+    try {
+      const response = await tradeAPI.getReceivedRequests();
+      if (response.data.success) {
+        setRequests(response.data.requests);
+      }
+    } catch (error) {
+      console.error('요청 조회 실패', error);
     }
   };
 
@@ -125,7 +142,55 @@ function MyPage() {
           </div>
         </Card>
 
-        {/* 🔥 비밀번호 변경 모달 */}
+        <Card 
+          style={{ ...styles.card, marginTop: '24px' }}
+          title={
+            <span>
+              <NotificationOutlined style={{ color: '#faad14', marginRight: '8px' }} />
+              받은 거래 요청 <Badge count={requests.length} offset={[5, -2]} color="red" />
+            </span>
+          }
+        >
+          <List
+            itemLayout="horizontal"
+            dataSource={requests}
+            locale={{ emptyText: '아직 받은 거래 요청이 없습니다.' }}
+            renderItem={(item) => (
+              <List.Item
+                actions={[
+                  <Button 
+                    type="primary"
+                    ghost
+                    size="small" 
+                    icon={<ArrowRightOutlined />}
+                    onClick={() => navigate(`/marketplace/${item.item_id}`)}
+                  >
+                    게시물 보기
+                  </Button>
+                ]}>
+                <List.Item.Meta
+                  avatar={<Avatar icon={<UserOutlined />} style={{ backgroundColor: '#87d068' }} />}
+                  title={
+                    <span>
+                      <strong>{item.buyer_name}</strong>님이 
+                      <span style={{ color: '#1890ff' }}> [{item.item_title}]</span> 거래를 요청했습니다.
+                    </span>
+                  }
+                  description={
+                    <Space>
+                      <Text type="secondary">{new Date(item.created_at).toLocaleDateString()}</Text>
+                      <Tag color={item.status === 'pending' ? 'orange' : 'green'}>
+                        {item.status === 'pending' ? '대기중' : item.status}
+                      </Tag>
+                    </Space>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        </Card>        
+
+        {/*  비밀번호 변경 모달 */}
         <Modal
           title="비밀번호 변경"
           open={isModalOpen}

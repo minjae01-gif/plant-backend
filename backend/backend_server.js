@@ -6,6 +6,7 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -23,6 +24,7 @@ const authRoutes = require('./routes/auth');
 const postRoutes = require('./routes/posts');
 const marketplaceRoutes = require('./routes/marketplace');
 const commentRoutes = require('./routes/comments');
+const tradeRoutes = require('./routes/trade');
 
 // =======================================
 // ⭐ ESP32 센서 데이터 저장
@@ -91,6 +93,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api', commentRoutes); 
 app.use('/api/posts', postRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/trade', tradeRoutes);
 
 // =======================================
 // 🔌 DB 연결 테스트

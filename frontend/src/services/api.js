@@ -74,6 +74,15 @@ export const marketplaceAPI = {
   deleteItem: (id) => api.delete(`/api/marketplace/${id}`),
 };
 
+// 거래 요청 API
+export const tradeAPI = {
+  // 거래 요청 보내기
+  sendRequest: (itemId, sellerId) => api.post('/api/trade/request', { itemId, sellerId }),
+  
+  // 받은 요청 확인하기
+  getReceivedRequests: () => api.get('/api/trade/received'),
+};
+
 // 댓글 API
 export const commentAPI = {
   // 댓글 조회
