@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Card, Button, Space, Typography, Tag, Divider, 
-  Avatar, Row, Col, Spin, message, Statistic, Carousel, Modal
+  Avatar, Row, Col, Spin, Statistic, Carousel, App
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -34,6 +34,7 @@ function MarketplaceDetail() {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const { message, modal } = App.useApp();
 
 
 
@@ -84,40 +85,49 @@ function MarketplaceDetail() {
 
   
   // 거래 요청 핸들러
-const handleTradeRequest = async () => {
+  const handleTradeRequest = () => {
     if (!user) {
       message.warning('로그인이 필요합니다.');
       navigate('/login');
       return;
     }
     
-    if (window.confirm('판매자에게 거래를 요청하시겠습니까?')) {
-      try {
-        const response = await tradeAPI.sendRequest(item.id, item.user_id);
-        
-        if (response.data.success) {
-          // ✅ 성공 알림 (초록색 토스트)
-          message.success('요청 되었습니다.');
-        }
-      } catch (error) {
-        if (error.response) {
-          if (error.response.status === 409) {
-            // ⚠️ 중복 경고 (화면 중앙 팝업)
-            // 이제 무조건 뜰 겁니다.
-            Modal.warning({
-              title: '알림',
-              content: '이미 구매 요청 했습니다.',
+    // modal.confirm 사용 (window.confirm보다 예쁨)
+    modal.confirm({
+      title: '거래 요청',
+      content: '판매자에게 거래를 요청하시겠습니까?',
+      okText: '요청하기',
+      cancelText: '취소',
+      onOk: async () => {
+        try {
+          const response = await tradeAPI.sendRequest(item.id, item.user_id);
+          
+          if (response.data.success) {
+            // ✅ 성공 팝업 (modal.success)
+            modal.success({
+              title: '요청 완료',
+              content: '판매자에게 거래 요청을 보냈습니다!',
             });
-          } else if (error.response.status === 400) {
-            message.error(error.response.data.message);
-          } else {
-            message.error('요청 중 오류가 발생했습니다.');
           }
-        } else {
-          message.error('서버와 연결할 수 없습니다.');
+        } catch (error) {
+          if (error.response) {
+            if (error.response.status === 409) {
+              // ⚠️ 중복 경고 팝업 (modal.warning)
+              modal.warning({
+                title: '알림',
+                content: '이미 구매 요청을 보낸 상품입니다.',
+              });
+            } else if (error.response.status === 400) {
+              message.error(error.response.data.message);
+            } else {
+              message.error('요청 중 오류가 발생했습니다.');
+            }
+          } else {
+            message.error('서버와 연결할 수 없습니다.');
+          }
         }
       }
-    }
+    });
   };
   const formatPrice = (price) => {
     return new Intl.NumberFormat('ko-KR').format(price);
