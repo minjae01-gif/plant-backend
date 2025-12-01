@@ -1,127 +1,178 @@
-// =======================================
-// 🌐 기본 설정
-// =======================================
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-require('dotenv').config();
+// --- (상단 import 동일)
+import { 
+  ThunderboltOutlined, 
+  CloudOutlined,
+  BulbOutlined,
+  DropboxOutlined,
+  BulbFilled,
+  ExperimentOutlined,
+  SettingOutlined   // ⭐ NEW
+} from '@ant-design/icons';
 
-const app = express();
-const PORT = process.env.PORT || 5000;
+// (기존 코드 동일)
 
-// =======================================
-// ⚙️ 미들웨어
-// =======================================
-app.use(cors());
-app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// =======================================
-// 📌 라우트 import
-// =======================================
-const authRoutes = require('./routes/auth');
-const postRoutes = require('./routes/posts');
-const marketplaceRoutes = require('./routes/marketplace');
-const commentRoutes = require('./routes/comments');
-
-// =======================================
-// ⭐ ESP32 센서 데이터 저장
-// =======================================
-let latestSensorData = {
-  temperature: 0,
-  humidity: 0,
-  soilMoisture: 0,
-  lightLevel: 0,
-  timestamp: null
-};
-
-// =======================================
-// ⭐ ESP32 → 서버 : 센서 데이터 수신
-// =======================================
-app.post('/sensor', (req, res) => {
-  const { soil, light } = req.body;
-
-  latestSensorData = {
+function DashBoard() {
+  const [sensorData, setSensorData] = useState({
     temperature: 0,
     humidity: 0,
-    soilMoisture: soil,
-    lightLevel: Math.round(light / 10),  // 0~100 → 0~10
-    timestamp: new Date()
+    soilMoisture: 0,
+    lightLevel: 0,
+  });
+
+  const [loading, setLoading] = useState(true);
+
+  // ⭐ NEW: 프리셋 설정 데이터를 위한 상태
+  const [settings, setSettings] = useState({
+    ledOffHour: 22,
+    wateringIntervalHours: 6,
+    autoWaterEnabled: true,
+  });
+
+  const [settingLoading, setSettingLoading] = useState(false);
+
+  // ⭐ NEW: 프리셋 입력값 상태
+  const [newSettings, setNewSettings] = useState({
+    ledOffHour: 22,
+    wateringIntervalHours: 6,
+    autoWaterEnabled: true,
+  });
+
+  // ⭐ 기존 제어 상태
+  const [ledStatus, setLedStatus] = useState(false);
+  const [motorStatus, setMotorStatus] = useState(false);
+  const [controlLoading, setControlLoading] = useState(false);
+
+  // ========================================
+  //    📡 기본 센서 데이터 fetch
+  // ========================================
+  useEffect(() => {
+    fetchSensorData();
+    fetchSettings();    // ⭐ NEW: 설정 로딩
+    const interval = setInterval(fetchSensorData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ⭐ NEW: 설정 데이터 불러오기
+  const fetchSettings = async () => {
+    try {
+      const res = await sensorAPI.getSettings();
+      if (res.data.success) {
+        setSettings(res.data.settings);
+        setNewSettings(res.data.settings);
+      }
+    } catch (e) {
+      console.error("설정 불러오기 실패", e);
+    }
   };
 
-  console.log("\n📡 [ESP32 → 서버] 센서 데이터 수신");
-  console.log(`   🌱 Soil : ${soil}%`);
-  console.log(`   💡 Light: ${light}% → ${latestSensorData.lightLevel}`);
+  // ⭐ NEW: 설정 업데이트 함수
+  const updateSettings = async () => {
+    setSettingLoading(true);
+    try {
+      const res = await sensorAPI.updateSettings(newSettings);
+      if (res.data.success) {
+        setSettings(res.data.settings);
+        message.success("프리셋 설정이 업데이트되었습니다!");
+      }
+    } catch (e) {
+      message.error("설정 업데이트 실패");
+    } finally {
+      setSettingLoading(false);
+    }
+  };
 
-  res.json({ success: true, message: "Sensor data received" });
-});
+  // ⭐ 기존 코드 하단 유지 (센서, LED, 모터 제어 등 그대로)
 
-// =======================================
-// ⭐ 프론트엔드 → 서버 : 최신 센서 데이터 조회
-// =======================================
-app.get('/api/sensor/latest', (req, res) => {
-  res.json({
-    success: true,
-    data: latestSensorData
-  });
-});
+  return (
+    <Layout>
+      <div style={styles.container}>
+        <Title level={2}>🌱 실시간 센서 대시보드</Title>
+        <Text type="secondary">IoT 센서 데이터 모니터링 & 제어</Text>
 
-// =======================================
-// ⭐ ESP32 제어 명령
-// =======================================
-let command = "";
+        <Row gutter={[24, 24]} style={{ marginTop: '32px' }}>
 
-// ESP32가 명령을 가져감
-app.get('/command', (req, res) => {
-  res.send(command);
-  command = ""; // 가져간 후 초기화
-});
+          {/* ----- 기존 센서 카드들 (그대로 유지) ----- */}
 
-// 프론트엔드가 명령 전달
-app.post('/api/command', (req, res) => {
-  command = req.body.command || "";
-  console.log("📤 [프론트엔드 → 서버] 명령:", command);
-  res.json({ success: true });
-});
+          {/* ⭐ 기존 LED 카드 그대로 유지 */}
+          {/* ⭐ 기존 펌프 카드 그대로 유지 */}
 
-// =======================================
-// 📌 REST API 기본 라우트 등록
-// =======================================
-app.use('/api/auth', authRoutes);
-app.use('/api', commentRoutes); 
-app.use('/api/posts', postRoutes);
-app.use('/api/marketplace', marketplaceRoutes);
+          {/* ========================================================= */}
+          {/* ⭐ NEW: 프리셋 설정 카드 추가 (기존 기능 유지 + 추가만 됨) */}
+          {/* ========================================================= */}
+          <Col xs={24} md={12} lg={12}>
+            <Card style={styles.presetCard} hoverable>
+              <div style={{ textAlign: "center" }}>
+                <SettingOutlined style={{ fontSize: "42px", color: "#722ed1" }} />
+                <Title level={4} style={{ marginTop: "12px" }}>
+                  자동 제어 프리셋 설정
+                </Title>
+              </div>
 
-// =======================================
-// 🔌 DB 연결 테스트
-// =======================================
-const db = require('./config/db');
-db.query('SELECT 1')
-  .then(() => console.log('✅ MySQL 연결 성공!'))
-  .catch(err => console.error('❌ MySQL 연결 실패:', err));
+              <div style={{ marginTop: "20px" }}>
+                <Text strong>💡 LED 자동 꺼짐 시간 (0~23)</Text>
+                <input
+                  type="number"
+                  value={newSettings.ledOffHour}
+                  min={0}
+                  max={23}
+                  onChange={(e) =>
+                    setNewSettings({
+                      ...newSettings,
+                      ledOffHour: Number(e.target.value),
+                    })
+                  }
+                  style={styles.input}
+                />
 
-// =======================================
-// ❌ 404 핸들러
-// =======================================
-app.use((req, res) => {
-  console.log(`❌ 404 - 라우트 없음: ${req.method} ${req.originalUrl}`);
-  res.status(404).json({
-    success: false,
-    message: `라우트를 찾을 수 없습니다: ${req.method} ${req.originalUrl}`
-  });
-});
+                <Text strong>🚿 물주기 주기 (시간)</Text>
+                <input
+                  type="number"
+                  value={newSettings.wateringIntervalHours}
+                  min={1}
+                  max={48}
+                  onChange={(e) =>
+                    setNewSettings({
+                      ...newSettings,
+                      wateringIntervalHours: Number(e.target.value),
+                    })
+                  }
+                  style={styles.input}
+                />
 
-// =======================================
-// 🚀 서버 시작
-// =======================================
-app.listen(PORT, () => {
-  console.log(`\n🚀 서버 실행중: http://localhost:${PORT}`);
+                <Text strong>⚙️ 자동 물주기 활성화</Text>
+                <div>
+                  <Button
+                    type={newSettings.autoWaterEnabled ? "primary" : "default"}
+                    onClick={() =>
+                      setNewSettings({
+                        ...newSettings,
+                        autoWaterEnabled: !newSettings.autoWaterEnabled,
+                      })
+                    }
+                    style={{ marginTop: "6px" }}
+                  >
+                    {newSettings.autoWaterEnabled ? "ON" : "OFF"}
+                  </Button>
+                </div>
 
-  console.log('\n📋 등록된 기능');
-  console.log('📌 ESP32 → 서버 : POST /sensor');
-  console.log('📌 서버 → ESP32 : GET /command');
-  console.log('📌 Front → Server : GET /api/sensor/latest');
-  console.log('📌 Front → Server : POST /api/command');
-});
+                <Button
+                  type="primary"
+                  size="large"
+                  block
+                  loading={settingLoading}
+                  onClick={updateSettings}
+                  style={{ marginTop: "20px" }}
+                >
+                  적용하기
+                </Button>
+              </div>
+            </Card>
+          </Col>
 
-module.exports = app;
+          {/* ----- 기존 상태 요약 카드 유지 ----- */}
+
+        </Row>
+      </div>
+    </Layout>
+  );
+}

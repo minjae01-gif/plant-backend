@@ -1,0 +1,5 @@
+{
+  "ledOffHour": 22,
+  "wateringIntervalHours": 6,
+  "autoWaterEnabled": true
+}
