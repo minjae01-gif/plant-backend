@@ -18,6 +18,7 @@ import WriteMarketplace from './pages/WriteMarketplace';
 import EditMarketplace from './pages/EditMarketplace';
 import MarketplaceDetail from './pages/MarketplaceDetail';
 import MyPage from './pages/MyPage';
+import AdminDashboard from './pages/AdminDashboard';
 
 function AppContent() {
   return (
@@ -41,6 +42,8 @@ function AppContent() {
           <Route path="/marketplace/write" element={<PrivateRoute><WriteMarketplace /></PrivateRoute>} />
           <Route path="/marketplace/edit/:id" element={<PrivateRoute><EditMarketplace /></PrivateRoute>} />
           <Route path="/marketplace/:id" element={<PrivateRoute><MarketplaceDetail /></PrivateRoute>} />
+          {/* 관리자페이지 */}
+          <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
           {/* 마이페이지 */}
           <Route path="/mypage" element={<PrivateRoute><MyPage /></PrivateRoute>} />
           {/* 404 - 홈으로 리다이렉트 */}

@@ -21,6 +21,13 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // =======================================
+// ⚙️ 관리자 라우트 등록
+// =======================================
+
+const adminRoutes = require('./routes/admin');
+app.use('/api/admin', adminRoutes);
+
+// =======================================
 // ⚙️ 사용자 설정 (LED/물주기 프리셋)
 // =======================================
 let userSettings = {

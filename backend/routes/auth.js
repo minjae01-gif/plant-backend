@@ -94,7 +94,7 @@ router.post('/login', async (req, res) => {
 
     // JWT 토큰 생성
     const token = jwt.sign(
-      { userId: user.id, username: user.username, email: user.email },
+      { userId: user.id, username: user.username, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -106,7 +106,8 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: user.role
       }
     });
 
@@ -153,7 +154,7 @@ router.get('/verify', verifyToken, (req, res) => {
 router.get('/profile', verifyToken, async (req, res) => {
   try {
     const [users] = await db.query(
-      ' SELECT id, username, email , created_at FROM users WHERE id = ?',
+      ' SELECT id, username, email , role, created_at FROM users WHERE id = ?',
       [req.user.userId]
     );
   

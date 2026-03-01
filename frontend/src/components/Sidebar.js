@@ -8,6 +8,7 @@ import {
   LogoutOutlined,
   LoginOutlined,
   UserOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -18,6 +19,8 @@ function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+
+  console.log("현재 로그인 유저 정보:", user);
 
   const handleLogout = () => {
     logout();
@@ -62,6 +65,17 @@ function Sidebar() {
       onClick: () => navigate('/mypage'),
     },
   ];
+
+  if (user && user.role === 'admin') {
+    menuItems.push(
+      {
+        key: '/admin',
+        icon: <SettingOutlined style={{ color: '#ff4d4f' }} />,
+        label: <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>관리자 페이지</span>,
+        onClick: () => navigate('/admin'),
+        style : { marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.1)' } // 위쪽 여백과 구분선 추가
+    });
+  }
 
   return (
     <Sider
@@ -197,5 +211,7 @@ const styles = {
     right: 0,
   },
 };
+
+
 
 export default Sidebar;

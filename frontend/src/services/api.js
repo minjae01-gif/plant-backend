@@ -109,4 +109,17 @@ export const sensorAPI = {
   sendCommand: (command) => api.post('/api/command', { command }), // ⭐ 제어 명령 전송
 };
 
+export const adminAPI = {
+  // 전체 유저 목록 가져오기 
+  getUsers: () => api.get('/api/admin/users'),
+  
+  // 전체 게시글/상품 가져오기 (대시보드 리스트용)
+  getAllPosts: () => api.get('/api/posts'), // 기존 API 재활용 혹은 관리자용 별도 생성
+  getAllMarketplaceItems: () => api.get('/api/marketplace'),
+
+  // 삭제 기능
+  deletePost: (id) => api.delete(`/api/admin/posts/${id}`),
+  deleteMarketItem: (id) => api.delete(`/api/admin/marketplace/${id}`),
+};
+
 export default api;
