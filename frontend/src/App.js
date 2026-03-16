@@ -19,6 +19,7 @@ import EditMarketplace from './pages/EditMarketplace';
 import MarketplaceDetail from './pages/MarketplaceDetail';
 import MyPage from './pages/MyPage';
 import AdminDashboard from './pages/AdminDashboard';
+import PlantInfo from './pages/PlantInfo';
 
 function AppContent() {
   return (
@@ -46,6 +47,8 @@ function AppContent() {
           <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
           {/* 마이페이지 */}
           <Route path="/mypage" element={<PrivateRoute><MyPage /></PrivateRoute>} />
+          {/* 식물 정보 */}
+          <Route path="/plants" element={<PlantInfo />} />
           {/* 404 - 홈으로 리다이렉트 */}
           <Route path="*" element={<Navigate to="/" />} />
           

@@ -122,4 +122,17 @@ export const adminAPI = {
   deleteMarketItem: (id) => api.delete(`/api/admin/marketplace/${id}`),
 };
 
+// 식물 정보 API
+export const plantAPI = {
+  getPlants: () => api.get('/api/plants'),
+  getPlant: (id) => api.get(`/api/plants/${id}`),
+  createPlant: (formData) => api.post('/api/plants', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  updatePlant: (id, formData) => api.put(`/api/plants/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  deletePlant: (id) => api.delete(`/api/plants/${id}`),
+};
+
 export default api;
