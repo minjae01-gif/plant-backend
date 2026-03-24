@@ -74,6 +74,7 @@ const marketplaceRoutes = require('./routes/marketplace');
 const commentRoutes = require('./routes/comments');
 const tradeRoutes = require('./routes/trade');
 const plantRoutes = require('./routes/plants');
+const myPlantsRoutes = require('./routes/myplants');
 
 // =======================================
 // ⭐ ESP32 센서 데이터 저장
@@ -144,6 +145,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/trade', tradeRoutes);
 app.use('/api/plants', plantRoutes);
+app.use('/api/myplants', myPlantsRoutes);
 
 // =======================================
 // 🔌 DB 연결 테스트

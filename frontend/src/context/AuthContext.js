@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         try {
           const response = await authAPI.getProfile();
-          setUser(response.user);  // 👈 response.data.user → response.user
+          setUser(response.user);
         } catch (error) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const response = await authAPI.login({ email, password });
-      const { token, user } = response;  // 👈 response.data 제거!
+      const { token, user } = response;
       
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));

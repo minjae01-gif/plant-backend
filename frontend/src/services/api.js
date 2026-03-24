@@ -140,4 +140,35 @@ export const plantAPI = {
   deletePlant: (id) => api.delete(`/api/plants/${id}`),
 };
 
+// 내 식물 관리 API
+export const myPlantsAPI = {
+  // 내 식물 목록 조회
+  getMyPlants: () => api.get('/api/myplants'),
+  
+  // 특정 내 식물 조회
+  getMyPlant: (id) => api.get(`/api/myplants/${id}`),
+  
+  // 내 식물 등록
+  createMyPlant: (formData) => api.post('/api/myplants', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  
+  // 내 식물 수정
+  updateMyPlant: (id, formData) => api.put(`/api/myplants/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  
+  // 내 식물 삭제
+  deleteMyPlant: (id) => api.delete(`/api/myplants/${id}`),
+  
+  // 물주기 기록 조회
+  getWateringLogs: (plantId) => api.get(`/api/myplants/${plantId}/watering`),
+  
+  // 물주기 기록 추가
+  addWateringLog: (plantId, data) => api.post(`/api/myplants/${plantId}/watering`, data),
+  
+  // 물주기 기록 삭제
+  deleteWateringLog: (plantId, logId) => api.delete(`/api/myplants/${plantId}/watering/${logId}`),
+};
+
 export default api;

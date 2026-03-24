@@ -10,6 +10,7 @@ import {
   UserOutlined,
   SettingOutlined,
   BookOutlined,
+  HeartOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -46,6 +47,12 @@ function Sidebar() {
       icon: <DashboardOutlined />,
       label: '대시보드',
       onClick: () => navigate('/dashboard'),
+    },
+    {
+    key: '/myplants',
+    icon: <HeartOutlined />,
+    label: '내 식물',
+    onClick: () => navigate('/myplants'),
     },
     {
     key: '/plants',

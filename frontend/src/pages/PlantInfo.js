@@ -521,15 +521,20 @@ const styles = {
   },
   imageContainer: {
     width: '100%',
-    height: '300px',
+    maxHeight: '400px',
     borderRadius: '8px',
     overflow: 'hidden',
-    marginBottom: '16px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    background: '#f5f5f5',
   },
   image: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
+    maxWidth: '100%',
+    maxHeight: '400px',
+    width: 'auto',
+    height: 'auto',
+    objectFit: 'contain',
   },
 };
 
