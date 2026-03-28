@@ -56,6 +56,8 @@ export const authAPI = {
 
   // 비밀번호 재설정
   resetPassword: (data) => api.post('/api/auth/reset-password', data),
+
+  // 마이페이지 닉네임 변경
   updateProfile: (data) => api.put('/api/auth/update-profile', data),
 };
 
