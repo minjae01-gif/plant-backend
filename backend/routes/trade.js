@@ -153,6 +153,29 @@ router.patch('/accept/:requestId', verifyToken, async (req, res) => {
   }
 });
 
+// 거래 거절 API
+router.patch('/reject/:requestId', verifyToken, async (req, res) => {
+  const { requestId } = req.params;
+  const sellerId = req.user.userId; // 토큰에서 가져온 판매자 ID
+
+  try {
+    // 본인의 상품에 들어온 요청만 거절할 수 있어야 하니까 seller_id 
+    const [result] = await db.query(
+      'UPDATE trade_requests SET status = "rejected" WHERE id = ? AND seller_id = ?',
+      [requestId, sellerId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(403).json({ success: false, message: '거절 권한이 없거나 요청을 찾을 수 없습니다.' });
+    }
+
+    res.json({ success: true, message: '거래 요청을 거절했습니다.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: '서버 오류' });
+  }
+});
+
 // 거래 완료 처리 (PATCH /api/trade/complete/:requestId)
 router.patch('/complete/:requestId', verifyToken, async (req, res) => {
   let conn;
@@ -200,6 +223,53 @@ router.patch('/complete/:requestId', verifyToken, async (req, res) => {
     res.status(500).json({ success: false, message: '서버 오류' });
   } finally {
     if (conn) conn.release();
+  }
+});
+
+// 내가 보낸 거래 요청 목록 (구매자 입장)
+router.get('/my-requests', verifyToken, async (req, res) => {
+  const buyerId = req.user.userId;
+
+  try {
+    const [requests] = await db.query(`
+      SELECT 
+        tr.*, 
+        m.title as item_title, 
+        u.username as seller_name
+      FROM trade_requests tr
+      JOIN marketplace m ON tr.item_id = m.id
+      JOIN users u ON tr.seller_id = u.id
+      WHERE tr.buyer_id = ?
+      ORDER BY tr.created_at DESC
+    `, [buyerId]);
+
+    res.json({ success: true, requests });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: '목록 조회 실패' });
+  }
+});
+
+router.get('/sent', verifyToken, async (req, res) => {
+  const buyerId = req.user.userId; // 로그인한 내 아이디
+
+  try {
+    const [requests] = await db.query(`
+      SELECT 
+        tr.*, 
+        m.title as item_title, 
+        u.username as seller_name
+      FROM trade_requests tr
+      JOIN marketplace m ON tr.item_id = m.id
+      JOIN users u ON tr.seller_id = u.id
+      WHERE tr.buyer_id = ?
+      ORDER BY tr.created_at DESC
+    `, [buyerId]);
+
+    res.json({ success: true, requests });
+  } catch (error) {
+    console.error('보낸 요청 조회 에러:', error);
+    res.status(500).json({ success: false, message: '목록 조회 실패' });
   }
 });
 

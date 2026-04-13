@@ -105,6 +105,10 @@ export const tradeAPI = {
 
   // 거래 완료 API (PATCH)
   completeRequest: (requestId) => api.patch(`/api/trade/complete/${requestId}`),
+
+  rejectRequest: (requestId) => api.patch(`/api/trade/reject/${requestId}`),
+
+  getSentRequests: () => api.get('/api/trade/sent'),
 };
 
 // 댓글 API
@@ -205,6 +209,12 @@ export const chatAPI = {
   getMessages: (roomId) => api.get(`/api/chat/rooms/${roomId}/messages`),
 
   deleteRoom: (roomId) => api.delete(`/api/chat/rooms/${roomId}`),
+
+  // 전체 안 읽은 메시지 총합 가져오기
+  getUnreadTotal: () => api.get('/api/chat/unread-total'),
+
+  // 특정 채팅방 메시지 읽음 처리 (PATCH)
+  markAsRead: (roomId) => api.patch(`/api/chat/read/${roomId}`),
 };
 
 export default api;

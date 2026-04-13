@@ -33,6 +33,7 @@ function MyPage() {
   const [changeLoading, setChangeLoading] = useState(false);
   const [myItems, setMyItems] = useState([]);
   const [chatRooms, setChatRooms] = useState([]);
+  const [mySentRequests, setMySentRequests] = useState([]);
 
   const isGoogleUser = user?.email?.includes('@gmail.com');
 
@@ -63,6 +64,22 @@ function MyPage() {
       setLoading(false);
     }
   };
+
+  const fetchSentRequests = async () => {
+  try {
+    const res = await tradeAPI.getSentRequests();
+    if (res.data.success) {
+      setMySentRequests(res.data.requests);
+    }
+  } catch (err) {
+    console.error("보낸 요청 로드 실패", err);
+  }
+};
+
+  useEffect(() => {
+  fetchMyData();      // 기존 데이터(받은 요청 등)
+  fetchSentRequests(); // 내가 보낸 요청 추가
+}, []);
 
   const handleUpdateNickname = async (values) => {
     setEditLoading(true);
@@ -115,6 +132,18 @@ function MyPage() {
       message.error(error.response?.data?.message || '수락 처리 중 오류가 발생했습니다.');
     }
   };
+
+  const handleRejectTrade = async (requestId) => {
+  try {
+    const response = await tradeAPI.rejectRequest(requestId);
+    if (response.data.success) {
+      message.success('거래 요청을 거절했습니다.');
+      fetchMyData(); // 목록 새로고침
+    }
+  } catch (error) {
+    message.error('거절 처리 중 오류가 발생했습니다.');
+  }
+};
 
   const handleCompleteTrade = async (requestId) => {
     try {
@@ -254,7 +283,7 @@ function MyPage() {
         {/* 🔔 섹션 2: 받은 거래 요청 */}
         <Card 
           style={{ ...styles.card, marginTop: '24px' }} 
-          title={<span><NotificationOutlined style={{ color: '#faad14', marginRight: 8 }} /> 받은 거래 요청 <Badge count={requests.length} /></span>}
+          title={<span><NotificationOutlined style={{ color: '#faad14', marginRight: 8 }} /> 받은 거래 요청 <Badge count={requests.filter(r => r.status === 'pending').length} /></span>}
         >
           <List
             dataSource={requests}
@@ -263,14 +292,17 @@ function MyPage() {
                 actions={[
                   <Button type="link" onClick={() => navigate(`/marketplace/${item.item_id}`)}>보기</Button>,
                   item.status === 'pending' && (
+                    <space>
                     <Button type="primary" size="small" onClick={() => handleAcceptTrade(item.id)}>수락</Button>
+                    <Button danger size="small" onClick={() => handleRejectTrade(item.id)}>거절</Button>
+                    </space>
                   ),
                   item.status === 'accepted' && (
                     <Button type="default" size="small" style={{ color: '#52c41a', borderColor: '#52c41a' }} onClick={() => handleCompleteTrade(item.id)}>거래 완료</Button>
                   ),
                   item.status === 'completed' && <Tag color="default">거래 종료</Tag>
                 ]}
-              >
+              > 
                 <List.Item.Meta 
                   title={
                     <Space>
@@ -281,6 +313,25 @@ function MyPage() {
                   } 
                   description={item.item_title} 
                 />
+              </List.Item>
+            )}
+          />
+        </Card>
+
+        <Card title="내가 보낸 거래 요청" style={{ marginTop: '24px' }}>
+          <List
+            dataSource={mySentRequests} // 위에서 만든 API로 가져온 데이터
+            renderItem={(item) => (
+              <List.Item>
+                <List.Item.Meta
+                  title={`${item.seller_name}님께 보낸 요청`}
+                  description={item.item_title}
+                />
+                {/* 상태에 따른 태그 표시 */}
+                {item.status === 'pending' && <Tag color="default">대기 중</Tag>}
+                {item.status === 'accepted' && <Tag color="orange">예약 중</Tag>}
+                {item.status === 'completed' && <Tag color="blue">구매 완료</Tag>}
+                {item.status === 'rejected' && <Tag color="red">거절됨</Tag>}
               </List.Item>
             )}
           />

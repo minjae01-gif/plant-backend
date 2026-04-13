@@ -8,6 +8,7 @@ import { chatAPI } from '../services/api';
 import { ArrowLeftOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { Modal, message, Space } from 'antd';
 
+
 const { Content } = Layout;
 const { Text } = Typography;
 
@@ -21,7 +22,7 @@ function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const scrollRef = useRef();
-
+  const { refreshUnreadCount } = useAuth(); 
   const handleBack = () => {
     navigate('/chat-list');
   };
@@ -73,6 +74,22 @@ useEffect(() => {
     }
   };
 
+    useEffect(() => {
+      const markAsRead = async () => {
+        try {
+          await chatAPI.markAsRead(roomId);
+          console.log("읽음 처리 완료");
+          
+          // ⭐ 서버 데이터가 바뀌었으니, 전역 배지 상태도 새로고침해!
+          refreshUnreadCount(); 
+        } catch (err) {
+          console.error(err);
+        }
+      };
+
+      if (roomId) markAsRead();
+    }, [roomId]);
+
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
 
@@ -93,6 +110,7 @@ useEffect(() => {
     // 내 화면에 즉시 반영
     setMessages((prev) => [...prev, messageData]);
     setInputValue('');
+
   };
 
   const showDeleteConfirm = () => {
@@ -160,7 +178,7 @@ return (
           <List
             dataSource={messages}
             renderItem={(item) => {
-              const isMine = item.sender_id === user.id;
+              const isMine = item.sender_id === (user?.id || user?.userId);
               return (
                 <List.Item style={{ border: 'none', padding: '8px 0', justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
                   <div style={{ display: 'flex', flexDirection: isMine ? 'row-reverse' : 'row', alignItems: 'flex-start', maxWidth: '80%' }}>

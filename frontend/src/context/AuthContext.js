@@ -1,11 +1,13 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { authAPI } from '../services/api';
+import { chatAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // 페이지 로드 시 토큰 검증
   useEffect(() => {
@@ -84,11 +86,26 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const refreshUnreadCount = async () => {
+    try {
+      if (!user) return;
+      const res = await chatAPI.getUnreadTotal();
+
+      console.log("서버에서 준 배지 데이터:", res.data);
+      
+      setUnreadCount(res.data.unreadCount);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, googleLogin, setUser, signup, logout, loading }}>
+    <AuthContext.Provider value={{ user, unreadCount, refreshUnreadCount,login, googleLogin, setUser, signup, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
+
+  
 };
 
 // 커스텀 훅
