@@ -25,25 +25,65 @@ const app = express();
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 5000;
-const FRONTEND_URL = process.env.FRONTEND_URL || '*';
+
+// =======================================
+// 🌐 CORS 설정
+// =======================================
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://esp-32-pv78.vercel.app',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+
+  return (
+    allowedOrigins.includes(origin) ||
+    origin.endsWith('.vercel.app') ||
+    origin.includes('localhost')
+  );
+}
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (isAllowedOrigin(origin)) {
+      return callback(null, true);
+    }
+
+    console.log('❌ CORS 차단:', origin);
+    return callback(new Error('CORS 차단됨: ' + origin));
+  },
+  credentials: true,
+};
 
 // =======================================
 // 🔌 Socket.IO 설정
 // =======================================
 const io = new Server(server, {
   cors: {
-    origin: FRONTEND_URL,
-    methods: ['GET', 'POST']
-  }
+    origin: function (origin, callback) {
+      if (isAllowedOrigin(origin)) {
+        return callback(null, true);
+      }
+
+      console.log('❌ Socket.IO CORS 차단:', origin);
+      return callback(new Error('Socket.IO CORS 차단됨: ' + origin));
+    },
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
 });
 
 // =======================================
 // ⚙️ 미들웨어
 // =======================================
-app.use(cors({
-  origin: FRONTEND_URL
-}));
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// 이미지 업로드 폴더 정적 제공
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // =======================================
@@ -80,7 +120,7 @@ let userSettings = {
   autoWaterEnabled: settings.autoWaterEnabled ?? true,
   soilMoistureMin: settings.soilMoistureMin ?? 30,
   soilMoistureMax: settings.soilMoistureMax ?? 60,
-  ledOnHoursPerDay: settings.ledOnHoursPerDay ?? 8
+  ledOnHoursPerDay: settings.ledOnHoursPerDay ?? 8,
 };
 
 // =======================================
@@ -93,7 +133,7 @@ let latestSensorData = {
   lightRaw: 0,
   lightPercent: 0,
   lightLevel: 0,
-  timestamp: null
+  timestamp: null,
 };
 
 // =======================================
@@ -165,7 +205,7 @@ app.post('/sensor', async (req, res) => {
     lightPercent,
     lightLevel,
     temperature,
-    humidity
+    humidity,
   } = req.body;
 
   const data = {
@@ -175,11 +215,10 @@ app.post('/sensor', async (req, res) => {
     lightRaw: Number(lightRaw ?? 0),
     lightPercent: Number(lightPercent ?? 0),
     lightLevel: Number(lightLevel ?? 0),
-    timestamp: new Date()
+    timestamp: new Date(),
   };
 
   try {
-    // ⭐ DB 저장
     await db.query(
       `INSERT INTO sensor_data 
       (temperature, humidity, soil_moisture, light_raw, light_percent, light_level) 
@@ -190,27 +229,25 @@ app.post('/sensor', async (req, res) => {
         data.soilMoisture,
         data.lightRaw,
         data.lightPercent,
-        data.lightLevel
+        data.lightLevel,
       ]
     );
 
     console.log('💾 DB 저장 성공');
-
   } catch (err) {
     console.error('❌ DB 저장 실패:', err);
   }
 
-  // 기존 실시간 데이터도 유지
   latestSensorData = data;
-
   io.emit('sensorData', latestSensorData);
 
   res.json({
     success: true,
     message: 'Sensor data saved',
-    data
+    data,
   });
 });
+
 // =======================================
 // ⭐ 프론트엔드 → 서버 : 최신 센서 데이터 조회
 // =======================================
@@ -223,27 +260,27 @@ app.get('/api/sensor/latest', async (req, res) => {
     if (rows.length === 0) {
       return res.json({
         success: true,
-        data: null
+        data: null,
       });
     }
 
     res.json({
       success: true,
-      data: rows[0]
+      data: rows[0],
     });
-
   } catch (err) {
     console.error('❌ DB 조회 실패:', err);
 
     res.status(500).json({
       success: false,
-      message: 'DB 조회 실패'
+      message: 'DB 조회 실패',
     });
   }
 });
 
-//그래프용
-
+// =======================================
+// ⭐ 그래프용 센서 기록 조회
+// =======================================
 app.get('/api/sensor/history', async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -252,12 +289,15 @@ app.get('/api/sensor/history', async (req, res) => {
 
     res.json({
       success: true,
-      data: rows
+      data: rows,
     });
-
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false });
+    console.error('❌ 센서 기록 조회 실패:', err);
+
+    res.status(500).json({
+      success: false,
+      message: '센서 기록 조회 실패',
+    });
   }
 });
 
@@ -278,7 +318,7 @@ app.post('/api/command', (req, res) => {
 
   res.json({
     success: true,
-    command
+    command,
   });
 });
 
@@ -292,9 +332,10 @@ app.get('/api/species', (req, res) => {
     res.json(species);
   } catch (error) {
     console.error('❌ plant_species.json 로드 실패:', error);
+
     res.status(500).json({
       success: false,
-      message: '식물 데이터 로드 실패'
+      message: '식물 데이터 로드 실패',
     });
   }
 });
@@ -305,7 +346,7 @@ app.get('/api/species', (req, res) => {
 app.get('/api/settings', (req, res) => {
   res.json({
     success: true,
-    settings: userSettings
+    settings: userSettings,
   });
 });
 
@@ -319,11 +360,13 @@ app.post('/api/settings/update', (req, res) => {
     autoWaterEnabled,
     soilMoistureMin,
     soilMoistureMax,
-    ledOnHoursPerDay
+    ledOnHoursPerDay,
   } = req.body;
 
   if (ledOffHour !== undefined) userSettings.ledOffHour = ledOffHour;
-  if (wateringIntervalHours !== undefined) userSettings.wateringIntervalHours = wateringIntervalHours;
+  if (wateringIntervalHours !== undefined) {
+    userSettings.wateringIntervalHours = wateringIntervalHours;
+  }
   if (autoWaterEnabled !== undefined) userSettings.autoWaterEnabled = autoWaterEnabled;
   if (soilMoistureMin !== undefined) userSettings.soilMoistureMin = soilMoistureMin;
   if (soilMoistureMax !== undefined) userSettings.soilMoistureMax = soilMoistureMax;
@@ -335,7 +378,7 @@ app.post('/api/settings/update', (req, res) => {
 
   res.json({
     success: true,
-    settings: userSettings
+    settings: userSettings,
   });
 });
 
@@ -354,7 +397,7 @@ app.use((req, res) => {
 
   res.status(404).json({
     success: false,
-    message: `라우트를 찾을 수 없습니다: ${req.method} ${req.originalUrl}`
+    message: `라우트를 찾을 수 없습니다: ${req.method} ${req.originalUrl}`,
   });
 });
 
@@ -363,6 +406,7 @@ app.use((req, res) => {
 // =======================================
 server.listen(PORT, () => {
   console.log(`\n🚀 서버 실행중: PORT ${PORT}`);
+  console.log('🌐 허용된 프론트 주소:', allowedOrigins);
   console.log('📌 /sensor');
   console.log('📌 /api/sensor/latest');
   console.log('📌 /api/settings');
