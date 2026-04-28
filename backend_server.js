@@ -260,13 +260,31 @@ app.get('/api/sensor/latest', async (req, res) => {
     if (rows.length === 0) {
       return res.json({
         success: true,
-        data: null,
+        data: {
+          temperature: 0,
+          humidity: 0,
+          soilMoisture: 0,
+          lightRaw: 0,
+          lightPercent: 0,
+          lightLevel: 0,
+          timestamp: null
+        }
       });
     }
 
+    const row = rows[0];
+
     res.json({
       success: true,
-      data: rows[0],
+      data: {
+        temperature: row.temperature,
+        humidity: row.humidity,
+        soilMoisture: row.soil_moisture,
+        lightRaw: row.light_raw,
+        lightPercent: row.light_percent,
+        lightLevel: row.light_level,
+        timestamp: row.created_at
+      }
     });
   } catch (err) {
     console.error('❌ DB 조회 실패:', err);
