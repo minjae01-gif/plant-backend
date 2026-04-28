@@ -27,7 +27,7 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // =======================================
-// 🌐 CORS 설정
+// 🌐 CORS 설정22
 // =======================================
 const allowedOrigins = [
   'http://localhost:3000',
