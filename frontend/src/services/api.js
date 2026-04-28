@@ -134,8 +134,42 @@ export const commentAPI = {
 
 // IoT 센서 API
 export const sensorAPI = {
-  getLatestData: () => api.get('/api/sensor/latest'),
-  getHistoryData: () => api.get('/api/sensor/history'),
+  getLatestData: async () => {
+  const res = await api.get('/api/sensor/latest');
+
+  if (res.data?.data) {
+    const d = res.data.data;
+
+    res.data.data = {
+      ...d,
+      soilMoisture: d.soilMoisture ?? d.soil_moisture ?? 0,
+      lightLevel: d.lightLevel ?? d.light_level ?? 0,
+      lightRaw: d.lightRaw ?? d.light_raw ?? 0,
+      lightPercent: d.lightPercent ?? d.light_percent ?? 0,
+      temperature: d.temperature ?? 0,
+      humidity: d.humidity ?? 0,
+    };
+  }
+
+  return res;
+},
+  getHistoryData: async () => {
+  const res = await api.get('/api/sensor/history');
+
+  if (Array.isArray(res.data?.data)) {
+    res.data.data = res.data.data.map((d) => ({
+      ...d,
+      soilMoisture: d.soilMoisture ?? d.soil_moisture ?? 0,
+      lightLevel: d.lightLevel ?? d.light_level ?? 0,
+      lightRaw: d.lightRaw ?? d.light_raw ?? 0,
+      lightPercent: d.lightPercent ?? d.light_percent ?? 0,
+      temperature: d.temperature ?? 0,
+      humidity: d.humidity ?? 0,
+    }));
+  }
+
+  return res;
+},
   sendCommand: (command) => api.post('/api/command', { command }),
 
   // ⭐ 추가
