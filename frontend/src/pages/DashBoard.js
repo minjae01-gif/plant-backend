@@ -173,7 +173,9 @@ function DashBoard() {
   const fetchSensorData = async () => {
     try {
       const res = await sensorAPI.getLatestData();
-      if (res.data.success) setSensorData(res.data.data);
+      if (res.data.success && res.data.data) {
+      setSensorData(res.data.data);
+    }
     } catch (e) {
       console.error(e);
     } finally {
@@ -289,10 +291,10 @@ function DashBoard() {
   ];
 
   const lightLevels = [
-  { min: 0, max: 20, color: "#8c8c8c", label: "어두움" },   // 0~2
-  { min: 30, max: 60, color: "#faad14", label: "적당함" },  // 3~6
-  { min: 70, max: 100, color: "#52c41a", label: "밝음" },   // 7~10
-];
+    { min: 70, max: 100, color: "#8c8c8c", label: "어두움", range: "7~10" },
+    { min: 30, max: 60, color: "#faad14", label: "적당함", range: "3~6" },
+    { min: 0, max: 20, color: "#52c41a", label: "밝음", range: "0~2" },
+  ];
 
   /* =========================================================
       UI 렌더링
