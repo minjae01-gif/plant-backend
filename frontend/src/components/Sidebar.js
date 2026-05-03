@@ -90,10 +90,9 @@ function Sidebar({ isMobile, closeDrawer }) {
     });
   }
 
-  return (
+return (
     <Sider
       width={240}
-      // 모바일일 때는 고정(fixed)을 풀고 높이를 100%로 설정
       style={isMobile ? { height: '100%', background: '#001529' } : {
         height: '100vh',
         position: 'fixed',
@@ -104,88 +103,86 @@ function Sidebar({ isMobile, closeDrawer }) {
         boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
       }}
     >
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}></div>
-      {/* 로고 영역 */}
-      <div style={styles.logo}>
-        <span style={styles.logoIcon}>🌿</span>
-        <span style={styles.logoText}>Plant Community</span>
-      </div>
+      {/* 👇 여기서부터 전체 스크롤을 담당하는 Flex 컨테이너야 */}
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', overflowX: 'hidden' }}>
+        
+        {/* 1. 맨 위: 로고 영역 */}
+        <div style={styles.logo}>
+          <span style={styles.logoIcon}>🌿</span>
+          <span style={styles.logoText}>Plant Community</span>
+        </div>
 
-      {/* 사용자 정보 */}
-      <div style={styles.userInfo}>
-        <div style={styles.userAvatar}>
-          {user ? user.username?.charAt(0).toUpperCase() : '👤'}
-        </div>
-        <div style={styles.userName}>
-          {user ? user.username : 'Guest'}
-        </div>
-        {!user && (
-          <div style={{ fontSize: '12px', color: '#8c8c8c', marginTop: '4px' }}>
-            게스트 모드
+        {/* 2. 그 다음: 사용자 정보 */}
+        <div style={styles.userInfo}>
+          <div style={styles.userAvatar}>
+            {user ? user.username?.charAt(0).toUpperCase() : '👤'}
           </div>
-        )}
-      </div>
+          <div style={styles.userName}>
+            {user ? user.username : 'Guest'}
+          </div>
+          {!user && (
+            <div style={{ fontSize: '12px', color: '#8c8c8c', marginTop: '4px' }}>
+              게스트 모드
+            </div>
+          )}
+        </div>
 
-      {/* 메뉴 */}
-      <Menu
-        mode="inline"
-        selectedKeys={[selectedKey]}
-        items={menuItems}
-        style={{ background: 'transparent', border: 'none', marginTop: '20px' }}
-        theme="dark"
-      />
-
-      {/* 로그인/로그아웃 버튼 */}
-      <div style={styles.authContainer}>
-        {user ? (
+        {/* 3. 중간: 메뉴 영역 (플렉스로 남는 공간 차지) */}
+        <div style={{ flex: 1 }}>
           <Menu
             mode="inline"
+            selectedKeys={[selectedKey]}
+            items={menuItems}
+            style={{ background: 'transparent', border: 'none', marginTop: '20px', paddingBottom: '20px' }}
             theme="dark"
-            style={{ background: 'transparent', border: 'none' }}
-            items={[
-              {
-                key: 'logout',
-                icon: <LogoutOutlined />,
-                label: '로그아웃',
-                onClick: handleLogout,
-                danger: true,
-              },
-            ]}
           />
-        ) : (
-          <Button
-            type="primary"
-            icon={<LoginOutlined />}
-            onClick={handleLogin}
-            block
-            size="large"
-            style={{ background: '#52c41a', borderColor: '#52c41a' }}
-          >
-            로그인
-          </Button>
-        )}
+        </div>
+
+        {/* 4. 맨 밑: 로그인/로그아웃 버튼 */}
+        <div style={styles.authContainer}>
+          {user ? (
+            <Menu
+              mode="inline"
+              theme="dark"
+              style={{ background: 'transparent', border: 'none' }}
+              items={[
+                {
+                  key: 'logout',
+                  icon: <LogoutOutlined />,
+                  label: '로그아웃',
+                  onClick: handleLogout,
+                  danger: true,
+                },
+              ]}
+            />
+          ) : (
+            <Button
+              type="primary"
+              icon={<LoginOutlined />}
+              onClick={handleLogin}
+              block
+              size="large"
+              style={{ background: '#52c41a', borderColor: '#52c41a' }}
+            >
+              로그인
+            </Button>
+          )}
+        </div>
+
       </div>
     </Sider>
   );
 }
 
 const styles = {
-  logo: { height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255, 255, 255, 0.05)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
+  logo: { minHeight: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255, 255, 255, 0.05)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
   logoIcon: { fontSize: '28px', marginRight: '10px' },
   logoText: { color: '#fff', fontSize: '18px', fontWeight: 'bold' },
   userInfo: { padding: '24px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
   userAvatar: { width: '60px', height: '60px', borderRadius: '50%', background: '#52c41a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold', color: '#fff', marginBottom: '12px' },
   userName: { color: '#fff', fontSize: '16px', fontWeight: '500' },
-  menuContainer: {
-    flex: 1, // 남은 공간을 모두 차지하게 함
-    overflowY: 'auto', // 메뉴가 길면 여기서만 스크롤되게 함
-    overflowX: 'hidden',
-  },
-  authContainer: {
-    padding: '20px',
-    borderTop: '1px solid rgba(255, 255, 255, 0.1)', // 구분선 추가
-    flexShrink: 0, // 버튼 영역이 찌그러지지 않게 보호
-  },
+  // 👇 예전 코드에 있던 position: absolute 관련 설정들을 완전히 날렸어!
+  authContainer: { padding: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' },
 };
 
 export default Sidebar;
