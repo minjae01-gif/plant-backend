@@ -14,8 +14,8 @@ import {
 } from '@ant-design/icons';
 import { postAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import Layout from '../components/Layout';
 import Comments from '../components/Comments';
+// 💡 여기서 Layout import 지웠어!
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -114,19 +114,16 @@ function PostDetail() {
     });
   };
 
-  // content 파싱 및 렌더링
   const renderContent = () => {
     if (!post.content) return null;
 
     const lines = post.content.split('\n');
     const elements = [];
-    let imageIndex = 0;
-
+    
     lines.forEach((line, index) => {
       const imageMatch = line.match(/\[IMAGE:(\d+)\]/);
       
       if (imageMatch) {
-        // 이미지 블록
         const imgIndex = parseInt(imageMatch[1]);
         if (post.images && post.images[imgIndex]) {
           const totalImages = post.images.length;
@@ -150,7 +147,6 @@ function PostDetail() {
           );
         }
       } else if (line.trim()) {
-        // 텍스트 블록
         elements.push(
           <Paragraph key={`text-${index}`} style={styles.textBlock}>
             {line}
@@ -168,213 +164,206 @@ function PostDetail() {
     post.username === user.username
   );
 
+  // 💡 Layout 감싼 거 제거!
   if (loading) {
     return (
-      <Layout>
-        <div style={{ textAlign: 'center', padding: '100px' }}>
-          <Spin size="large" />
-        </div>
-      </Layout>
+      <div style={{ textAlign: 'center', padding: '100px' }}>
+        <Spin size="large" />
+      </div>
     );
   }
 
+  // 💡 Layout 감싼 거 제거!
   if (!post) {
     return (
-      <Layout>
+      <div style={styles.container}>
         <Card>
           <Text>게시글을 찾을 수 없습니다.</Text>
         </Card>
-      </Layout>
+      </div>
     );
   }
 
+  // 💡 메인 렌더링에서도 Layout 제거하고 바로 div로 리턴!
   return (
-    <Layout>
-      <div style={styles.container}>
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/community')}
-          size="large"
-          style={{ marginBottom: '20px' }}
-        >
-          목록으로
-        </Button>
+    <div style={styles.container}>
+      <Button
+        icon={<ArrowLeftOutlined />}
+        onClick={() => navigate('/community')}
+        size="large"
+        style={{ marginBottom: '20px' }}
+      >
+        목록으로
+      </Button>
 
-        {isEditing ? (
-          // 수정 모드
-          <Card>
-            <Title level={3}>게시글 수정</Title>
-            <Divider />
-            
-            <Space direction="vertical" size="large" style={{ width: '100%' }}>
-              <div>
-                <Text strong>제목</Text>
-                <Input
-                  size="large"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  style={{ marginTop: '8px' }}
-                />
-              </div>
+      {isEditing ? (
+        <Card>
+          <Title level={3}>게시글 수정</Title>
+          <Divider />
+          
+          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <div>
+              <Text strong>제목</Text>
+              <Input
+                size="large"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                style={{ marginTop: '8px' }}
+              />
+            </div>
 
-              <div>
-                <Text strong>내용</Text>
-                <TextArea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  rows={15}
-                  style={{ marginTop: '8px' }}
-                />
-              </div>
+            <div>
+              <Text strong>내용</Text>
+              <TextArea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                rows={15}
+                style={{ marginTop: '8px' }}
+              />
+            </div>
 
-              <div>
-                <Text strong>이미지 (기존 이미지 삭제 후 새로 업로드)</Text>
-                
-                {editImages.length > 0 && (
-                  <Row gutter={[16, 16]} style={{ marginTop: '12px' }}>
-                    {editImages.map((img, idx) => (
-                      <Col span={6} key={idx}>
-                        <Card
-                          size="small"
-                          cover={
-                            <img
-                              src={URL.createObjectURL(img)}
-                              alt={`preview-${idx}`}
-                              style={{ height: '150px', objectFit: 'cover' }}
-                            />
-                          }
-                          actions={[
-                            <Button
-                              icon={<DeleteOutlined />}
-                              size="small"
-                              danger
-                              onClick={() => removeEditImage(idx)}
-                            />
-                          ]}
-                        >
-                          <Tag>{idx + 1}/{editImages.length}</Tag>
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
-                )}
-
-                {editImages.length < 5 && (
-                  <Upload
-                    beforeUpload={handleImageUpload}
-                    showUploadList={false}
-                    accept="image/*"
-                  >
-                    <Button
-                      icon={<PlusOutlined />}
-                      block
-                      style={{ marginTop: '12px' }}
-                    >
-                      이미지 추가 ({editImages.length}/5)
-                    </Button>
-                  </Upload>
-                )}
-              </div>
-
-              <Space>
-                <Button
-                  type="primary"
-                  size="large"
-                  onClick={handleUpdate}
-                  style={{ background: '#52c41a', borderColor: '#52c41a' }}
-                >
-                  수정 완료
-                </Button>
-                <Button
-                  size="large"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditImages([]);
-                  }}
-                >
-                  취소
-                </Button>
-              </Space>
-            </Space>
-          </Card>
-        ) : (
-          // 보기 모드
-          <>
-            <Card style={styles.card}>
-              {/* 헤더 */}
-              <div style={styles.postHeader}>
-                <Title level={2} style={{ margin: 0 }}>
-                  {post.title}
-                </Title>
-                
-                <Divider />
-                
-                <Row justify="space-between" align="middle">
-                  <Col>
-                    <Space size="large">
-                      <Space>
-                        <Avatar 
-                          icon={<UserOutlined />} 
-                          style={{ backgroundColor: '#52c41a' }}
-                        />
-                        <Text strong style={{ fontSize: '16px' }}>
-                          {post.username}
-                        </Text>
-                      </Space>
-                      
-                      <Space>
-                        <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
-                        <Text type="secondary">{formatDate(post.created_at)}</Text>
-                      </Space>
-                      
-                      {post.updated_at !== post.created_at && (
-                        <Tag color="green">수정됨</Tag>
-                      )}
-                    </Space>
-                  </Col>
+            <div>
+              <Text strong>이미지 (기존 이미지 삭제 후 새로 업로드)</Text>
+              
+              {editImages.length > 0 && (
+                <Row gutter={[16, 16]} style={{ marginTop: '12px' }}>
+                  {editImages.map((img, idx) => (
+                    <Col span={6} key={idx}>
+                      <Card
+                        size="small"
+                        cover={
+                          <img
+                            src={URL.createObjectURL(img)}
+                            alt={`preview-${idx}`}
+                            style={{ height: '150px', objectFit: 'cover' }}
+                          />
+                        }
+                        actions={[
+                          <Button
+                            icon={<DeleteOutlined />}
+                            size="small"
+                            danger
+                            onClick={() => removeEditImage(idx)}
+                          />
+                        ]}
+                      >
+                        <Tag>{idx + 1}/{editImages.length}</Tag>
+                      </Card>
+                    </Col>
+                  ))}
                 </Row>
-              </div>
-
-              <Divider />
-
-              {/* 내용 렌더링 (텍스트 + 이미지 혼합) */}
-              <div style={styles.contentWrapper}>
-                {renderContent()}
-              </div>
-
-              {/* 작성자 액션 버튼 */}
-              {isAuthor && (
-                <>
-                  <Divider />
-                  <Space>
-                    <Button
-                      icon={<EditOutlined />}
-                      onClick={() => setIsEditing(true)}
-                      size="large"
-                    >
-                      수정
-                    </Button>
-                    <Button
-                      icon={<DeleteOutlined />}
-                      onClick={handleDelete}
-                      danger
-                      size="large"
-                    >
-                      삭제
-                    </Button>
-                  </Space>
-                </>
               )}
-            </Card>
 
-            {/* 댓글 섹션 */}
-            <Card style={{ marginTop: '24px' }}>
-              <Comments type="post" id={id} />
-            </Card>
-          </>
-        )}
-      </div>
-    </Layout>
+              {editImages.length < 5 && (
+                <Upload
+                  beforeUpload={handleImageUpload}
+                  showUploadList={false}
+                  accept="image/*"
+                >
+                  <Button
+                    icon={<PlusOutlined />}
+                    block
+                    style={{ marginTop: '12px' }}
+                  >
+                    이미지 추가 ({editImages.length}/5)
+                  </Button>
+                </Upload>
+              )}
+            </div>
+
+            <Space>
+              <Button
+                type="primary"
+                size="large"
+                onClick={handleUpdate}
+                style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              >
+                수정 완료
+              </Button>
+              <Button
+                size="large"
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditImages([]);
+                }}
+              >
+                취소
+              </Button>
+            </Space>
+          </Space>
+        </Card>
+      ) : (
+        <>
+          <Card style={styles.card}>
+            <div style={styles.postHeader}>
+              <Title level={2} style={{ margin: 0 }}>
+                {post.title}
+              </Title>
+              
+              <Divider />
+              
+              <Row justify="space-between" align="middle">
+                <Col>
+                  <Space size="large" wrap>
+                    <Space>
+                      <Avatar 
+                        icon={<UserOutlined />} 
+                        style={{ backgroundColor: '#52c41a' }}
+                      />
+                      <Text strong style={{ fontSize: '16px' }}>
+                        {post.username}
+                      </Text>
+                    </Space>
+                    
+                    <Space>
+                      <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
+                      <Text type="secondary">{formatDate(post.created_at)}</Text>
+                    </Space>
+                    
+                    {post.updated_at !== post.created_at && (
+                      <Tag color="green">수정됨</Tag>
+                    )}
+                  </Space>
+                </Col>
+              </Row>
+            </div>
+
+            <Divider />
+
+            <div style={styles.contentWrapper}>
+              {renderContent()}
+            </div>
+
+            {isAuthor && (
+              <>
+                <Divider />
+                <Space>
+                  <Button
+                    icon={<EditOutlined />}
+                    onClick={() => setIsEditing(true)}
+                    size="large"
+                  >
+                    수정
+                  </Button>
+                  <Button
+                    icon={<DeleteOutlined />}
+                    onClick={handleDelete}
+                    danger
+                    size="large"
+                  >
+                    삭제
+                  </Button>
+                </Space>
+              </>
+            )}
+          </Card>
+
+          <Card style={{ marginTop: '24px' }}>
+            <Comments type="post" id={id} />
+          </Card>
+        </>
+      )}
+    </div>
   );
 }
 
