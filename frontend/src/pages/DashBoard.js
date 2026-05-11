@@ -171,33 +171,61 @@ function DashBoard() {
   }, []);
 
   const fetchSensorData = async () => {
-    try {
-      const res = await sensorAPI.getLatestData();
-      if (res.data.success && res.data.data) {
+
+  if (!selectedDevice) return;
+
+  try {
+
+    const res =
+      await sensorAPI.getLatestData(
+        selectedDevice
+      );
+
+    if (
+      res.data.success &&
+      res.data.data
+    ) {
+
       setSensorData(res.data.data);
     }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const fetchSettings = async () => {
-    try {
-      const res = await sensorAPI.getSettings();
-      if (res.data.success) {
-        // 서버 settings에 ledOnHoursPerDay가 없을 수도 있으니 기본값 보정
-        setSettings(prev => ({
-          ...prev,
-          ...(res.data.settings || {}),
-          ledOnHoursPerDay: res.data.settings?.ledOnHoursPerDay ?? prev.ledOnHoursPerDay
-        }));
-      }
-    } catch (e) {
-      console.error("⚠ 설정 불러오기 실패", e);
+  } catch (e) {
+
+    console.error(e);
+
+  } finally {
+
+    setLoading(false);
+  }
+};
+
+ const fetchSettings = async () => {
+
+  if (!selectedDevice) return;
+
+  try {
+
+    const res =
+      await sensorAPI.getSettings(
+        selectedDevice
+      );
+
+    if (res.data.success) {
+
+      setSettings(prev => ({
+        ...prev,
+        ...(res.data.settings || {}),
+        ledOnHoursPerDay:
+          res.data.settings?.ledOnHoursPerDay
+          ?? prev.ledOnHoursPerDay
+      }));
     }
-  };
+
+  } catch (e) {
+
+    console.error(e);
+  }
+};
 
   const fetchSpecies = async () => {
     try {
@@ -252,7 +280,7 @@ function DashBoard() {
     setControlLoading(true);
 
     try {
-      const command = motorStatus ? "motor_off" : "motor_on";
+      const command = motorStatus ? "pump_off" : "pump_on";
       const res = await sensorAPI.sendCommand(command);
 
       if (res.data.success) {
@@ -268,18 +296,44 @@ function DashBoard() {
 
   /* ---------------------- 설정 업데이트 ---------------------- */
   const updateSettings = async () => {
-    try {
-      const res = await sensorAPI.updateSettings(settings);
-      if (res.data.success) {
-        message.success("설정이 저장되었습니다!");
-      } else {
-        message.error("설정 저장 실패(서버 응답 실패)");
-      }
-    } catch (e) {
-      console.error(e);
-      message.error("설정 저장 실패");
+
+  try {
+
+    const newSettings = {
+
+      ...settings,
+
+      device_key:
+        selectedDevice
+    };
+
+    const res =
+      await sensorAPI.updateSettings(
+        newSettings
+      );
+
+    if (res.data.success) {
+
+      message.success(
+        "설정이 저장되었습니다!"
+      );
+
+    } else {
+
+      message.error(
+        "설정 저장 실패"
+      );
     }
-  };
+
+  } catch (e) {
+
+    console.error(e);
+
+    message.error(
+      "설정 저장 실패"
+    );
+  }
+};
 
   /* =========================================================
       게이지 단계 색상 설정

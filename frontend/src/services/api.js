@@ -134,8 +134,10 @@ export const commentAPI = {
 
 // IoT 센서 API
 export const sensorAPI = {
-  getLatestData: async () => {
-  const res = await api.get('/api/sensor/latest');
+  getLatestData: async (deviceKey) => {
+  const res = await api.get(
+    `/api/sensor/latest?device_key=${deviceKey}`
+);
 
   if (res.data?.data) {
     const d = res.data.data;
@@ -153,9 +155,10 @@ export const sensorAPI = {
 
   return res;
 },
-  getHistoryData: async () => {
-  const res = await api.get('/api/sensor/history');
-
+  getHistoryData: async (deviceKey) => {
+  const res = await api.get(
+    `/api/sensor/history?device_key=${deviceKey}`
+);
   if (Array.isArray(res.data?.data)) {
     res.data.data = res.data.data.map((d) => ({
       ...d,
@@ -170,10 +173,17 @@ export const sensorAPI = {
 
   return res;
 },
-  sendCommand: (command) => api.post('/api/command', { command }),
+  sendCommand: (command, device_key) =>
+  api.post('/api/command', {
+    command,
+    device_key
+  }),
 
   // ⭐ 추가
-  getSettings: () => api.get('/api/settings'),
+  getSettings: (deviceKey) =>
+  api.get(
+    `/api/settings?device_key=${deviceKey}`
+  ),
   updateSettings: (data) => api.post('/api/settings/update', data),
   getSpecies: () => api.get('/api/species')
 };

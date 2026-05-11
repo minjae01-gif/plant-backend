@@ -139,7 +139,7 @@ let latestSensorData = {
 // =======================================
 // ⭐ ESP32 제어 명령
 // =======================================
-let command = '';
+let commands = {};
 
 // =======================================
 // 🔍 서버 상태 확인
@@ -199,14 +199,15 @@ app.post('/sensor', async (req, res) => {
   console.log('\n📩 req.body:', req.body);
 
   const {
-    soil,
-    soilMoisture,
-    lightRaw,
-    lightPercent,
-    lightLevel,
-    temperature,
-    humidity,
-  } = req.body;
+  device_key,
+  soil,
+  soilMoisture,
+  lightRaw,
+  lightPercent,
+  lightLevel,
+  temperature,
+  humidity,
+} = req.body;
 
   const data = {
     temperature: Number(temperature ?? 0),
@@ -218,34 +219,52 @@ app.post('/sensor', async (req, res) => {
     timestamp: new Date(),
   };
 
-  try {
-    await db.query(
-      `INSERT INTO sensor_data 
-      (temperature, humidity, soil_moisture, light_raw, light_percent, light_level) 
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        data.temperature,
-        data.humidity,
-        data.soilMoisture,
-        data.lightRaw,
-        data.lightPercent,
-        data.lightLevel,
-      ]
-    );
+ try {
 
-    console.log('💾 DB 저장 성공');
-  } catch (err) {
-    console.error('❌ DB 저장 실패:', err);
-  }
+  await db.query(
+    `
+    INSERT INTO sensor_data
+    (
+      device_id,
+      temperature,
+      humidity,
+      soil_moisture,
+      light_raw,
+      light_percent,
+      light_level
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      device_key,
+      data.temperature,
+      data.humidity,
+      data.soilMoisture,
+      data.lightRaw,
+      data.lightPercent,
+      data.lightLevel,
+    ]
+  );
 
-  latestSensorData = data;
-  io.emit('sensorData', latestSensorData);
+  console.log('💾 DB 저장 성공');
 
-  res.json({
-    success: true,
-    message: 'Sensor data saved',
-    data,
-  });
+} catch (err) {
+
+  console.error('❌ DB 저장 실패:', err);
+}
+
+latestSensorData = {
+  ...data,
+  device_id: device_key
+};
+
+io.emit('sensorData', latestSensorData);
+
+res.json({
+  success: true,
+  message: 'Sensor data saved',
+  data: latestSensorData,
+});
 });
 
 // =======================================
@@ -253,9 +272,20 @@ app.post('/sensor', async (req, res) => {
 // =======================================
 app.get('/api/sensor/latest', async (req, res) => {
   try {
-    const [rows] = await db.query(
-      'SELECT * FROM sensor_data ORDER BY created_at DESC LIMIT 1'
-    );
+  const deviceKey =
+  req.query.device_key;
+
+const [rows] = await db.query(
+  `
+  SELECT *
+  FROM sensor_data
+  WHERE device_id = ?
+  ORDER BY created_at DESC
+  LIMIT 1
+  `,
+  [deviceKey]
+);
+    
 
     if (rows.length === 0) {
       return res.json({
@@ -301,9 +331,20 @@ app.get('/api/sensor/latest', async (req, res) => {
 // =======================================
 app.get('/api/sensor/history', async (req, res) => {
   try {
-    const [rows] = await db.query(
-      'SELECT * FROM sensor_data ORDER BY created_at DESC LIMIT 50'
-    );
+    const deviceKey =
+  req.query.device_key;
+
+const [rows] = await db.query(
+  `
+  SELECT *
+  FROM sensor_data
+  WHERE device_id = ?
+  ORDER BY created_at DESC
+  LIMIT 50
+  `,
+  [deviceKey]
+
+);
 
     res.json({
       success: true,
@@ -323,23 +364,55 @@ app.get('/api/sensor/history', async (req, res) => {
 // ⭐ ESP32가 명령 가져가는 API
 // =======================================
 app.get('/command', (req, res) => {
+
+  const deviceKey =
+    req.query.device_key;
+
+  if (!deviceKey) {
+
+    return res.send('');
+  }
+
+  const command =
+    commands[deviceKey] || '';
+
   res.send(command);
-  command = '';
+
+  commands[deviceKey] = '';
 });
 
 // =======================================
 // ⭐ 프론트엔드가 명령 전달하는 API
 // =======================================
 app.post('/api/command', (req, res) => {
-  command = req.body.command || '';
-  console.log('📤 [프론트엔드 → 서버] 명령:', command);
+
+  const {
+    command,
+    device_key
+  } = req.body;
+
+  if (!device_key) {
+
+    return res.status(400).json({
+      success: false,
+      message: 'device_key 필요'
+    });
+  }
+
+  commands[device_key] =
+    command || '';
+
+  console.log(
+    '📤 명령 저장:',
+    device_key,
+    command
+  );
 
   res.json({
     success: true,
-    command,
+    command
   });
 });
-
 // =======================================
 // ⭐ 식물 데이터셋 API
 // =======================================
@@ -361,50 +434,139 @@ app.get('/api/species', (req, res) => {
 // =======================================
 // ⚙️ 프론트/ESP 설정 조회 API
 // =======================================
-app.get('/api/settings', (req, res) => {
-  res.json({
-    success: true,
-    settings: userSettings,
-  });
+app.get('/api/settings', async (req, res) => {
+
+  try {
+
+    const deviceKey =
+      req.query.device_key || 'ESP32_ROOM_01';
+
+    const [rows] = await db.query(
+      `
+      SELECT *
+      FROM command_settings
+      WHERE device_key = ?
+      LIMIT 1
+      `,
+      [deviceKey]
+    );
+
+    if (rows.length === 0) {
+
+      return res.status(404).json({
+        success: false
+      });
+    }
+
+    res.json({
+      success: true,
+      settings: rows[0]
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      success: false
+    });
+  }
 });
 
 // =======================================
 // ⚙️ 프리셋 수정 API
 // =======================================
-app.post('/api/settings/update', (req, res) => {
-  const {
-    ledOffHour,
-    wateringIntervalHours,
-    autoWaterEnabled,
-    soilMoistureMin,
-    soilMoistureMax,
-    ledOnHoursPerDay,
-  } = req.body;
+app.post('/api/settings/update', async (req, res) => {
 
-  if (ledOffHour !== undefined) userSettings.ledOffHour = ledOffHour;
-  if (wateringIntervalHours !== undefined) {
-    userSettings.wateringIntervalHours = wateringIntervalHours;
+  try {
+
+    const {
+      device_key,
+      ledOffHour,
+      wateringIntervalHours,
+      autoWaterEnabled,
+      soilMoistureMin,
+      soilMoistureMax,
+      ledOnHoursPerDay,
+    } = req.body;
+
+    await db.query(
+      `
+      UPDATE command_settings
+      SET
+        ledOffHour = ?,
+        wateringIntervalHours = ?,
+        autoWaterEnabled = ?,
+        soilMoistureMin = ?,
+        soilMoistureMax = ?,
+        ledOnHoursPerDay = ?
+      WHERE device_key = ?
+      `,
+      [
+        ledOffHour,
+        wateringIntervalHours,
+        autoWaterEnabled,
+        soilMoistureMin,
+        soilMoistureMax,
+        ledOnHoursPerDay,
+        device_key
+      ]
+    );
+
+    console.log('⚙️ DB 설정 업데이트 완료');
+
+    res.json({
+      success: true
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      success: false
+    });
   }
-  if (autoWaterEnabled !== undefined) userSettings.autoWaterEnabled = autoWaterEnabled;
-  if (soilMoistureMin !== undefined) userSettings.soilMoistureMin = soilMoistureMin;
-  if (soilMoistureMax !== undefined) userSettings.soilMoistureMax = soilMoistureMax;
-  if (ledOnHoursPerDay !== undefined) userSettings.ledOnHoursPerDay = ledOnHoursPerDay;
-
-  saveSettingsFile(userSettings);
-
-  console.log('⚙️ 사용자 설정 업데이트:', userSettings);
-
-  res.json({
-    success: true,
-    settings: userSettings,
-  });
 });
 
 // =======================================
 // ESP32가 LED/물주기 프리셋 가져가는 API
 // =======================================
-app.get('/command-settings', (req, res) => {
-  res.json(userSettings);
+app.get('/command-settings', async (req, res) => {
+
+  try {
+
+    const deviceKey =
+      req.query.device_key;
+
+    const [rows] = await db.query(
+      `
+      SELECT *
+      FROM command_settings
+      WHERE device_key = ?
+      LIMIT 1
+      `,
+      [deviceKey]
+    );
+
+    if (rows.length === 0) {
+
+      return res.status(404).json({
+        success: false,
+        message: '설정 없음'
+      });
+    }
+
+    res.json(rows[0]);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      success: false
+    });
+  }
 });
 
 // =======================================
