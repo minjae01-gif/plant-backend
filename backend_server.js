@@ -199,6 +199,7 @@ app.post('/sensor', async (req, res) => {
   console.log('\n📩 req.body:', req.body);
 
   const {
+    device_key,
     soil,
     soilMoisture,
     lightRaw,
@@ -218,20 +219,58 @@ app.post('/sensor', async (req, res) => {
     timestamp: new Date(),
   };
 
+  let deviceId = null;
+
+try {
+
+  const [deviceRows] = await db.query(
+    'SELECT id FROM devices WHERE device_key = ?',
+    [device_key]
+  );
+
+  if (deviceRows.length === 0) {
+
+    return res.status(404).json({
+      success: false,
+      message: '등록되지 않은 device_key'
+    });
+  }
+
+  deviceId = deviceRows[0].id;
+
+} catch (err) {
+
+  console.error('❌ device 조회 실패:', err);
+
+  return res.status(500).json({
+    success: false,
+    message: 'device 조회 실패'
+  });
+}
+
   try {
     await db.query(
-      `INSERT INTO sensor_data 
-      (temperature, humidity, soil_moisture, light_raw, light_percent, light_level) 
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        data.temperature,
-        data.humidity,
-        data.soilMoisture,
-        data.lightRaw,
-        data.lightPercent,
-        data.lightLevel,
-      ]
-    );
+  `INSERT INTO sensor_data
+  (
+    device_id,
+    temperature,
+    humidity,
+    soil_moisture,
+    light_raw,
+    light_percent,
+    light_level
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  [
+    deviceId,
+    data.temperature,
+    data.humidity,
+    data.soilMoisture,
+    data.lightRaw,
+    data.lightPercent,
+    data.lightLevel,
+  ]
+);
 
     console.log('💾 DB 저장 성공');
   } catch (err) {
