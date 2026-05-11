@@ -148,6 +148,7 @@ app.get('/', (req, res) => {
   res.send('Smart Plant Backend Server is running');
 });
 
+
 // =======================================
 // 📌 REST API 라우트 등록
 // =======================================
