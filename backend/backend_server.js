@@ -148,7 +148,6 @@ app.get('/', (req, res) => {
   res.send('Smart Plant Backend Server is running');
 });
 
-
 // =======================================
 // 📌 REST API 라우트 등록
 // =======================================
@@ -200,15 +199,15 @@ app.post('/sensor', async (req, res) => {
   console.log('\n📩 req.body:', req.body);
 
   const {
-    device_key,
-    soil,
-    soilMoisture,
-    lightRaw,
-    lightPercent,
-    lightLevel,
-    temperature,
-    humidity,
-  } = req.body;
+  device_key,
+  soil,
+  soilMoisture,
+  lightRaw,
+  lightPercent,
+  lightLevel,
+  temperature,
+  humidity,
+} = req.body;
 
   const data = {
     temperature: Number(temperature ?? 0),
@@ -220,58 +219,7 @@ app.post('/sensor', async (req, res) => {
     timestamp: new Date(),
   };
 
-  let deviceId = null;
-
-try {
-
-  const [deviceRows] = await db.query(
-    'SELECT id FROM devices WHERE device_key = ?',
-    [device_key]
-  );
-
-  if (deviceRows.length === 0) {
-
-    return res.status(404).json({
-      success: false,
-      message: '등록되지 않은 device_key'
-    });
-  }
-
-  deviceId = deviceRows[0].id;
-
-} catch (err) {
-
-  console.error('❌ device 조회 실패:', err);
-
-  return res.status(500).json({
-    success: false,
-    message: 'device 조회 실패'
-  });
-}
-
-  try {
-    await db.query(
-  `INSERT INTO sensor_data
-  (
-    device_id,
-    temperature,
-    humidity,
-    soil_moisture,
-    light_raw,
-    light_percent,
-    light_level
-  )
-  VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  [
-    deviceId,
-    data.temperature,
-    data.humidity,
-    data.soilMoisture,
-    data.lightRaw,
-    data.lightPercent,
-    data.lightLevel,
-  ]
-);
+ try {
 
   await db.query(
     `
@@ -465,7 +413,6 @@ app.post('/api/command', (req, res) => {
     command
   });
 });
-
 // =======================================
 // ⭐ 식물 데이터셋 API
 // =======================================
