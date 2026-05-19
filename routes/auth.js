@@ -172,11 +172,16 @@ router.post('/google', async (req, res) => {
     }
 
     // 로그인 성공 처리 (우리 사이트 전용 JWT 토큰 발급)
-    const token = jwt.sign(
-      { userId: user.id || user.insertId, username: user.username, role: user.role || 'user' },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+  const token = jwt.sign(
+  {
+    userId: user.id || user.insertId,
+    username: user.username,
+    email: user.email,
+    role: user.role || 'user'
+  },
+  process.env.JWT_SECRET,
+  { expiresIn: '24h' }
+);
 
     res.json({ 
       success: true, 

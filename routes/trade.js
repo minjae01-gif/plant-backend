@@ -104,7 +104,7 @@ router.patch('/accept/:requestId', verifyToken, async (req, res) => {
 
     // 2. 해당 거래 요청이 존재하는지, 그리고 판매자가 본인이 맞는지 확인
     const [requests] = await conn.query(
-      'SELECT item_id, status FROM trade_requests WHERE id = ? AND seller_id = ?',
+      'SELECT item_id, buyer_id, status FROM trade_requests WHERE id = ? AND seller_id = ?',
       [requestId, sellerId]
     );
 
@@ -115,6 +115,9 @@ router.patch('/accept/:requestId', verifyToken, async (req, res) => {
     }
 
     const request = requests[0];
+
+    const buyerId = request.buyer_id;
+    const itemId = request.item_id;
 
     // 이미 수락되었거나 거절된 요청인지 확인
     if (request.status !== 'pending') {
@@ -134,13 +137,33 @@ router.patch('/accept/:requestId', verifyToken, async (req, res) => {
       ['reserved', request.item_id]
     );
 
-    // 5. 모든 작업이 성공하면 DB에 최종 반영
+    // 채팅방 생성 또는
+    let roomId;
+        const [existingRoom] = await conn.query(
+          'SELECT id FROM chat_rooms WHERE item_id = ? AND buyer_id = ? AND seller_id = ?',
+          [itemId, buyerId, sellerId]
+        );
+
+        if (existingRoom.length > 0) {
+          roomId = existingRoom[0].id; // 이미 방이 있으면 그 방 번호 사용
+        } else {
+          const [newRoom] = await conn.query(
+            'INSERT INTO chat_rooms (item_id, buyer_id, seller_id) VALUES (?, ?, ?)',
+            [itemId, buyerId, sellerId]
+          );
+          roomId = newRoom.insertId; // 새로 만든 방 번호 가져오기
+        }
+
+    // 모든 작업 성공 시 커밋
     await conn.commit();
     
+    // 4. 프론트로 roomId 보내주기
     res.json({ 
       success: true, 
-      message: '거래를 수락했습니다. 상품 상태가 예약 중으로 변경되었습니다.' 
+      message: '거래를 수락했습니다. 채팅방으로 이동합니다.',
+      roomId: roomId // 프론트엔드가 기다리던 값!
     });
+
 
   } catch (error) {
     // 오류 발생 시 모든 작업을 취소하고 원래대로 되돌림

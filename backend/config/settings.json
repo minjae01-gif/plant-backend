@@ -1,8 +1,0 @@
-{
-  "ledOffHour": 22,
-  "wateringIntervalHours": 72,
-  "autoWaterEnabled": true,
-  "soilMoistureMin": 30,
-  "soilMoistureMax": 60,
-  "ledOnHoursPerDay": 16
-}

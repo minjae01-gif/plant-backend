@@ -11,6 +11,11 @@ require('dotenv').config();
 
 const chatRouter = require('./routes/chat');
 const authData = require('./routes/auth');
+
+const {
+  verifyToken
+} = require('./routes/auth');
+
 const db = require('./config/db');
 
 const adminRoutes = require('./routes/admin');
@@ -20,6 +25,8 @@ const commentRoutes = require('./routes/comments');
 const tradeRoutes = require('./routes/trade');
 const plantRoutes = require('./routes/plants');
 const myPlantsRoutes = require('./routes/myplants');
+
+const deviceRoutes = require('./routes/device');
 
 const app = express();
 const server = http.createServer(app);
@@ -141,13 +148,34 @@ let latestSensorData = {
 // =======================================
 let commands = {};
 
+async function checkDeviceAccess(
+  userId,
+  deviceKey
+) {
+
+  const [rows] = await db.query(
+    `
+    SELECT *
+    FROM user_devices
+    WHERE user_id = ?
+    AND device_key = ?
+    LIMIT 1
+    `,
+    [
+      userId,
+      deviceKey
+    ]
+  );
+
+  return rows.length > 0;
+}
+
 // =======================================
 // 🔍 서버 상태 확인
 // =======================================
 app.get('/', (req, res) => {
   res.send('Smart Plant Backend Server is running');
 });
-
 
 // =======================================
 // 📌 REST API 라우트 등록
@@ -162,6 +190,7 @@ app.use('/api/plants', plantRoutes);
 app.use('/api/myplants', myPlantsRoutes);
 app.use('/api/auth', authData.router);
 
+app.use('/api/device', deviceRoutes);
 // =======================================
 // 💬 실시간 채팅 소켓
 // =======================================
@@ -200,15 +229,15 @@ app.post('/sensor', async (req, res) => {
   console.log('\n📩 req.body:', req.body);
 
   const {
-    device_key,
-    soil,
-    soilMoisture,
-    lightRaw,
-    lightPercent,
-    lightLevel,
-    temperature,
-    humidity,
-  } = req.body;
+  device_key,
+  soil,
+  soilMoisture,
+  lightRaw,
+  lightPercent,
+  lightLevel,
+  temperature,
+  humidity,
+} = req.body;
 
   const data = {
     temperature: Number(temperature ?? 0),
@@ -220,58 +249,7 @@ app.post('/sensor', async (req, res) => {
     timestamp: new Date(),
   };
 
-  let deviceId = null;
-
-try {
-
-  const [deviceRows] = await db.query(
-    'SELECT id FROM devices WHERE device_key = ?',
-    [device_key]
-  );
-
-  if (deviceRows.length === 0) {
-
-    return res.status(404).json({
-      success: false,
-      message: '등록되지 않은 device_key'
-    });
-  }
-
-  deviceId = deviceRows[0].id;
-
-} catch (err) {
-
-  console.error('❌ device 조회 실패:', err);
-
-  return res.status(500).json({
-    success: false,
-    message: 'device 조회 실패'
-  });
-}
-
-  try {
-    await db.query(
-  `INSERT INTO sensor_data
-  (
-    device_id,
-    temperature,
-    humidity,
-    soil_moisture,
-    light_raw,
-    light_percent,
-    light_level
-  )
-  VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  [
-    deviceId,
-    data.temperature,
-    data.humidity,
-    data.soilMoisture,
-    data.lightRaw,
-    data.lightPercent,
-    data.lightLevel,
-  ]
-);
+ try {
 
   await db.query(
     `
@@ -322,11 +300,27 @@ res.json({
 // =======================================
 // ⭐ 프론트엔드 → 서버 : 최신 센서 데이터 조회
 // =======================================
-app.get('/api/sensor/latest', async (req, res) => {
+app.get(
+  '/api/sensor/latest',
+  verifyToken,
+  async (req, res) => {
   try {
   const deviceKey =
   req.query.device_key;
 
+  const hasAccess =
+  await checkDeviceAccess(
+    req.user.userId,
+    deviceKey
+  );
+
+if (!hasAccess) {
+
+  return res.status(403).json({
+    success: false,
+    message: '디바이스 권한 없음'
+  });
+}
 const [rows] = await db.query(
   `
   SELECT *
@@ -381,10 +375,27 @@ const [rows] = await db.query(
 // =======================================
 // ⭐ 그래프용 센서 기록 조회
 // =======================================
-app.get('/api/sensor/history', async (req, res) => {
+app.get(
+  '/api/sensor/history',
+  verifyToken,
+  async (req, res) => {
   try {
     const deviceKey =
   req.query.device_key;
+
+    const hasAccess =
+  await checkDeviceAccess(
+    req.user.userId,
+    deviceKey
+  );
+
+if (!hasAccess) {
+
+  return res.status(403).json({
+    success: false,
+    message: '디바이스 권한 없음'
+  });
+}
 
 const [rows] = await db.query(
   `
@@ -436,7 +447,10 @@ app.get('/command', (req, res) => {
 // =======================================
 // ⭐ 프론트엔드가 명령 전달하는 API
 // =======================================
-app.post('/api/command', (req, res) => {
+app.post(
+  '/api/command',
+  verifyToken,
+  async (req, res) => {
 
   const {
     command,
@@ -450,6 +464,20 @@ app.post('/api/command', (req, res) => {
       message: 'device_key 필요'
     });
   }
+
+  const hasAccess =
+  await checkDeviceAccess(
+    req.user.userId,
+    device_key
+  );
+
+if (!hasAccess) {
+
+  return res.status(403).json({
+    success: false,
+    message: '해당 디바이스 권한 없음'
+  });
+}
 
   commands[device_key] =
     command || '';
@@ -465,7 +493,6 @@ app.post('/api/command', (req, res) => {
     command
   });
 });
-
 // =======================================
 // ⭐ 식물 데이터셋 API
 // =======================================
@@ -487,12 +514,29 @@ app.get('/api/species', (req, res) => {
 // =======================================
 // ⚙️ 프론트/ESP 설정 조회 API
 // =======================================
-app.get('/api/settings', async (req, res) => {
+app.get(
+  '/api/settings',
+  verifyToken,
+  async (req, res) => {
 
   try {
 
     const deviceKey =
-      req.query.device_key || 'ESP32_ROOM_01';
+      req.query.device_key;
+
+    const hasAccess =
+      await checkDeviceAccess(
+        req.user.userId,
+        deviceKey
+      );
+
+    if (!hasAccess) {
+
+      return res.status(403).json({
+        success: false,
+        message: '디바이스 권한 없음'
+      });
+    }
 
     const [rows] = await db.query(
       `
@@ -529,7 +573,10 @@ app.get('/api/settings', async (req, res) => {
 // =======================================
 // ⚙️ 프리셋 수정 API
 // =======================================
-app.post('/api/settings/update', async (req, res) => {
+app.post(
+  '/api/settings/update',
+  verifyToken,
+  async (req, res) => {
 
   try {
 
@@ -542,6 +589,20 @@ app.post('/api/settings/update', async (req, res) => {
       soilMoistureMax,
       ledOnHoursPerDay,
     } = req.body;
+
+    const hasAccess =
+      await checkDeviceAccess(
+        req.user.userId,
+        device_key
+      );
+
+    if (!hasAccess) {
+
+      return res.status(403).json({
+        success: false,
+        message: '디바이스 권한 없음'
+      });
+    }
 
     await db.query(
       `
