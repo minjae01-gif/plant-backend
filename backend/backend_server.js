@@ -431,6 +431,16 @@ app.get('/command', (req, res) => {
   const deviceKey =
     req.query.device_key;
 
+  console.log(
+    "📥 COMMAND REQUEST:",
+    deviceKey
+  );
+
+  console.log(
+    "📦 COMMANDS:",
+    commands
+  );
+
   if (!deviceKey) {
 
     return res.send('');
@@ -439,6 +449,11 @@ app.get('/command', (req, res) => {
   const command =
     commands[deviceKey] || '';
 
+  console.log(
+    "📤 SEND COMMAND:",
+    command
+  );
+  
   res.send(command);
 
   //commands[deviceKey] = '';
