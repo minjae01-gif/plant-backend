@@ -426,7 +426,7 @@ const [rows] = await db.query(
 // =======================================
 // ⭐ ESP32가 명령 가져가는 API
 // =======================================
-app.get('/command', (req, res) => {
+app.get('/command', async (req, res) => {
 
   const deviceKey =
     req.query.device_key;
@@ -436,27 +436,51 @@ app.get('/command', (req, res) => {
     deviceKey
   );
 
-  console.log(
-    "📦 COMMANDS:",
-    commands
+  if (!deviceKey) {
+    return res.send('');
+  }
+
+  const [rows] = await db.query(
+    `
+    SELECT *
+    FROM device_commands
+    WHERE device_key = ?
+    ORDER BY created_at DESC
+    LIMIT 1
+    `,
+    [deviceKey]
   );
 
-  if (!deviceKey) {
+  console.log(
+    "📦 DB COMMAND ROWS:",
+    rows
+  );
+
+  if (rows.length === 0) {
+
+    console.log("📭 명령 없음");
 
     return res.send('');
   }
 
   const command =
-    commands[deviceKey] || '';
+    rows[0].command;
 
   console.log(
     "📤 SEND COMMAND:",
     command
   );
-  
+
   res.send(command);
 
-  //commands[deviceKey] = '';
+  // 명령 1회 사용 후 삭제
+  await db.query(
+    `
+    DELETE FROM device_commands
+    WHERE id = ?
+    `,
+    [rows[0].id]
+  );
 });
 
 // =======================================
@@ -494,8 +518,14 @@ if (!hasAccess) {
   });
 }
 
-  commands[device_key] =
-    command || '';
+  await db.query(
+  `
+  INSERT INTO device_commands
+  (device_key, command)
+  VALUES (?, ?)
+  `,
+  [device_key, command]
+);
 
   console.log(
     '📤 명령 저장:',
