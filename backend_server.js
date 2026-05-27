@@ -1,0 +1,709 @@
+// =======================================
+// 🌐 기본 설정
+// =======================================
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
+const http = require('http');
+const { Server } = require('socket.io');
+require('dotenv').config();
+
+const chatRouter = require('./routes/chat');
+const authData = require('./routes/auth');
+
+const {
+  verifyToken
+} = require('./routes/auth');
+
+const db = require('./config/db');
+
+const adminRoutes = require('./routes/admin');
+const postRoutes = require('./routes/posts');
+const marketplaceRoutes = require('./routes/marketplace');
+const commentRoutes = require('./routes/comments');
+const tradeRoutes = require('./routes/trade');
+const plantRoutes = require('./routes/plants');
+const myPlantsRoutes = require('./routes/myplants');
+
+const deviceRoutes = require('./routes/device');
+
+const app = express();
+const server = http.createServer(app);
+
+const PORT = process.env.PORT || 5000;
+
+// =======================================
+// 🌐 CORS 설정22
+// =======================================
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://esp-32-pv78.vercel.app',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+
+  return (
+    allowedOrigins.includes(origin) ||
+    origin.endsWith('.vercel.app') ||
+    origin.includes('localhost')
+  );
+}
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (isAllowedOrigin(origin)) {
+      return callback(null, true);
+    }
+
+    console.log('❌ CORS 차단:', origin);
+    return callback(new Error('CORS 차단됨: ' + origin));
+  },
+  credentials: true,
+};
+
+// =======================================
+// 🔌 Socket.IO 설정
+// =======================================
+const io = new Server(server, {
+  cors: {
+    origin: function (origin, callback) {
+      if (isAllowedOrigin(origin)) {
+        return callback(null, true);
+      }
+
+      console.log('❌ Socket.IO CORS 차단:', origin);
+      return callback(new Error('Socket.IO CORS 차단됨: ' + origin));
+    },
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
+// =======================================
+// ⚙️ 미들웨어
+// =======================================
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// 이미지 업로드 폴더 정적 제공
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// =======================================
+// ⚙️ settings.json 로드 / 저장
+// =======================================
+const SETTINGS_PATH = path.join(__dirname, 'config', 'settings.json');
+
+function loadSettingsFile() {
+  try {
+    if (!fs.existsSync(SETTINGS_PATH)) return {};
+    return JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+  } catch (e) {
+    console.error('❌ settings.json 로드 실패:', e);
+    return {};
+  }
+}
+
+function saveSettingsFile(data) {
+  try {
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.error('❌ settings.json 저장 실패:', e);
+  }
+}
+
+const settings = loadSettingsFile();
+
+// =======================================
+// ⚙️ 사용자 설정
+// =======================================
+let userSettings = {
+  ledOffHour: settings.ledOffHour ?? 22,
+  wateringIntervalHours: settings.wateringIntervalHours ?? 6,
+  autoWaterEnabled: settings.autoWaterEnabled ?? true,
+  soilMoistureMin: settings.soilMoistureMin ?? 30,
+  soilMoistureMax: settings.soilMoistureMax ?? 60,
+  ledOnHoursPerDay: settings.ledOnHoursPerDay ?? 8,
+};
+
+// =======================================
+// ⭐ ESP32 센서 데이터 저장
+// =======================================
+let latestSensorData = {
+  temperature: 0,
+  humidity: 0,
+  soilMoisture: 0,
+  lightRaw: 0,
+  lightPercent: 0,
+  lightLevel: 0,
+  timestamp: null,
+};
+
+// =======================================
+// ⭐ ESP32 제어 명령
+// =======================================
+let commands = {};
+
+async function checkDeviceAccess(
+  userId,
+  deviceKey
+) {
+
+  const [rows] = await db.query(
+    `
+    SELECT *
+    FROM user_devices
+    WHERE user_id = ?
+    AND device_key = ?
+    LIMIT 1
+    `,
+    [
+      userId,
+      deviceKey
+    ]
+  );
+
+  return rows.length > 0;
+}
+
+// =======================================
+// 🔍 서버 상태 확인
+// =======================================
+app.get('/', (req, res) => {
+  res.send('Smart Plant Backend Server is running');
+});
+
+// =======================================
+// 📌 REST API 라우트 등록
+// =======================================
+app.use('/api/chat', chatRouter);
+app.use('/api/admin', adminRoutes);
+app.use('/api', commentRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/trade', tradeRoutes);
+app.use('/api/plants', plantRoutes);
+app.use('/api/myplants', myPlantsRoutes);
+app.use('/api/auth', authData.router);
+
+app.use('/api/device', deviceRoutes);
+// =======================================
+// 💬 실시간 채팅 소켓
+// =======================================
+io.on('connection', (socket) => {
+  console.log('📱 새로운 사용자가 연결되었습니다:', socket.id);
+
+  socket.on('join_room', (roomId) => {
+    socket.join(roomId);
+    console.log(`🏠 유저가 방 ${roomId}에 입장했습니다.`);
+  });
+
+  socket.on('send_message', async (data) => {
+    const { room_id, sender_id, message } = data;
+
+    try {
+      await db.query(
+        'INSERT INTO chat_messages (room_id, sender_id, message) VALUES (?, ?, ?)',
+        [room_id, sender_id, message]
+      );
+
+      socket.to(room_id).emit('receive_message', data);
+    } catch (err) {
+      console.error('❌ 메시지 저장 실패:', err);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ 유저 연결 종료:', socket.id);
+  });
+});
+
+// =======================================
+// ⭐ ESP32 → 서버 : 센서 데이터 수신
+// =======================================
+app.post('/sensor', async (req, res) => {
+  console.log('\n📩 req.body:', req.body);
+
+  const {
+  device_key,
+  soil,
+  soilMoisture,
+  lightRaw,
+  lightPercent,
+  lightLevel,
+  temperature,
+  humidity,
+} = req.body;
+
+  const data = {
+    temperature: Number(temperature ?? 0),
+    humidity: Number(humidity ?? 0),
+    soilMoisture: Number(soilMoisture ?? soil ?? 0),
+    lightRaw: Number(lightRaw ?? 0),
+    lightPercent: Number(lightPercent ?? 0),
+    lightLevel: Number(lightLevel ?? 0),
+    timestamp: new Date(),
+  };
+
+ try {
+
+  await db.query(
+    `
+    INSERT INTO sensor_data
+    (
+      device_id,
+      temperature,
+      humidity,
+      soil_moisture,
+      light_raw,
+      light_percent,
+      light_level
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      device_key,
+      data.temperature,
+      data.humidity,
+      data.soilMoisture,
+      data.lightRaw,
+      data.lightPercent,
+      data.lightLevel,
+    ]
+  );
+
+  console.log('💾 DB 저장 성공');
+
+} catch (err) {
+
+  console.error('❌ DB 저장 실패:', err);
+}
+
+latestSensorData = {
+  ...data,
+  device_id: device_key
+};
+
+io.emit('sensorData', latestSensorData);
+
+res.json({
+  success: true,
+  message: 'Sensor data saved',
+  data: latestSensorData,
+});
+});
+
+// =======================================
+// ⭐ 프론트엔드 → 서버 : 최신 센서 데이터 조회
+// =======================================
+app.get(
+  '/api/sensor/latest',
+  verifyToken,
+  async (req, res) => {
+  try {
+  const deviceKey =
+  req.query.device_key;
+
+  const hasAccess =
+  await checkDeviceAccess(
+    req.user.userId,
+    deviceKey
+  );
+
+if (!hasAccess) {
+
+  return res.status(403).json({
+    success: false,
+    message: '디바이스 권한 없음'
+  });
+}
+const [rows] = await db.query(
+  `
+  SELECT *
+  FROM sensor_data
+  WHERE device_id = ?
+  ORDER BY created_at DESC
+  LIMIT 1
+  `,
+  [deviceKey]
+);
+    
+
+    if (rows.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          temperature: 0,
+          humidity: 0,
+          soilMoisture: 0,
+          lightRaw: 0,
+          lightPercent: 0,
+          lightLevel: 0,
+          timestamp: null
+        }
+      });
+    }
+
+    const row = rows[0];
+
+    res.json({
+      success: true,
+      data: {
+        temperature: row.temperature,
+        humidity: row.humidity,
+        soilMoisture: row.soil_moisture,
+        lightRaw: row.light_raw,
+        lightPercent: row.light_percent,
+        lightLevel: row.light_level,
+        timestamp: row.created_at
+      }
+    });
+  } catch (err) {
+    console.error('❌ DB 조회 실패:', err);
+
+    res.status(500).json({
+      success: false,
+      message: 'DB 조회 실패',
+    });
+  }
+});
+
+// =======================================
+// ⭐ 그래프용 센서 기록 조회
+// =======================================
+app.get(
+  '/api/sensor/history',
+  verifyToken,
+  async (req, res) => {
+  try {
+    const deviceKey =
+  req.query.device_key;
+
+    const hasAccess =
+  await checkDeviceAccess(
+    req.user.userId,
+    deviceKey
+  );
+
+if (!hasAccess) {
+
+  return res.status(403).json({
+    success: false,
+    message: '디바이스 권한 없음'
+  });
+}
+
+const [rows] = await db.query(
+  `
+  SELECT *
+  FROM sensor_data
+  WHERE device_id = ?
+  ORDER BY created_at DESC
+  LIMIT 50
+  `,
+  [deviceKey]
+
+);
+
+    res.json({
+      success: true,
+      data: rows,
+    });
+  } catch (err) {
+    console.error('❌ 센서 기록 조회 실패:', err);
+
+    res.status(500).json({
+      success: false,
+      message: '센서 기록 조회 실패',
+    });
+  }
+});
+
+// =======================================
+// ⭐ ESP32가 명령 가져가는 API
+// =======================================
+app.get('/command', (req, res) => {
+
+  const deviceKey =
+    req.query.device_key;
+
+  if (!deviceKey) {
+
+    return res.send('');
+  }
+
+  const command =
+    commands[deviceKey] || '';
+
+  res.send(command);
+
+  commands[deviceKey] = '';
+});
+
+// =======================================
+// ⭐ 프론트엔드가 명령 전달하는 API
+// =======================================
+app.post(
+  '/api/command',
+  verifyToken,
+  async (req, res) => {
+
+  const {
+    command,
+    device_key
+  } = req.body;
+
+  if (!device_key) {
+
+    return res.status(400).json({
+      success: false,
+      message: 'device_key 필요'
+    });
+  }
+
+  const hasAccess =
+  await checkDeviceAccess(
+    req.user.userId,
+    device_key
+  );
+
+if (!hasAccess) {
+
+  return res.status(403).json({
+    success: false,
+    message: '해당 디바이스 권한 없음'
+  });
+}
+
+  commands[device_key] =
+    command || '';
+
+  console.log(
+    '📤 명령 저장:',
+    device_key,
+    command
+  );
+
+  res.json({
+    success: true,
+    command
+  });
+});
+// =======================================
+// ⭐ 식물 데이터셋 API
+// =======================================
+app.get('/api/species', (req, res) => {
+  try {
+    const speciesPath = path.join(__dirname, 'config', 'plant_species.json');
+    const species = JSON.parse(fs.readFileSync(speciesPath, 'utf-8'));
+    res.json(species);
+  } catch (error) {
+    console.error('❌ plant_species.json 로드 실패:', error);
+
+    res.status(500).json({
+      success: false,
+      message: '식물 데이터 로드 실패',
+    });
+  }
+});
+
+// =======================================
+// ⚙️ 프론트/ESP 설정 조회 API
+// =======================================
+app.get(
+  '/api/settings',
+  verifyToken,
+  async (req, res) => {
+
+  try {
+
+    const deviceKey =
+      req.query.device_key;
+
+    const hasAccess =
+      await checkDeviceAccess(
+        req.user.userId,
+        deviceKey
+      );
+
+    if (!hasAccess) {
+
+      return res.status(403).json({
+        success: false,
+        message: '디바이스 권한 없음'
+      });
+    }
+
+    const [rows] = await db.query(
+      `
+      SELECT *
+      FROM command_settings
+      WHERE device_key = ?
+      LIMIT 1
+      `,
+      [deviceKey]
+    );
+
+    if (rows.length === 0) {
+
+      return res.status(404).json({
+        success: false
+      });
+    }
+
+    res.json({
+      success: true,
+      settings: rows[0]
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      success: false
+    });
+  }
+});
+
+// =======================================
+// ⚙️ 프리셋 수정 API
+// =======================================
+app.post(
+  '/api/settings/update',
+  verifyToken,
+  async (req, res) => {
+
+  try {
+
+    const {
+      device_key,
+      ledOffHour,
+      wateringIntervalHours,
+      autoWaterEnabled,
+      soilMoistureMin,
+      soilMoistureMax,
+      ledOnHoursPerDay,
+    } = req.body;
+
+    const hasAccess =
+      await checkDeviceAccess(
+        req.user.userId,
+        device_key
+      );
+
+    if (!hasAccess) {
+
+      return res.status(403).json({
+        success: false,
+        message: '디바이스 권한 없음'
+      });
+    }
+
+    await db.query(
+      `
+      UPDATE command_settings
+      SET
+        ledOffHour = ?,
+        wateringIntervalHours = ?,
+        autoWaterEnabled = ?,
+        soilMoistureMin = ?,
+        soilMoistureMax = ?,
+        ledOnHoursPerDay = ?
+      WHERE device_key = ?
+      `,
+      [
+        ledOffHour,
+        wateringIntervalHours,
+        autoWaterEnabled,
+        soilMoistureMin,
+        soilMoistureMax,
+        ledOnHoursPerDay,
+        device_key
+      ]
+    );
+
+    console.log('⚙️ DB 설정 업데이트 완료');
+
+    res.json({
+      success: true
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      success: false
+    });
+  }
+});
+
+// =======================================
+// ESP32가 LED/물주기 프리셋 가져가는 API
+// =======================================
+app.get('/command-settings', async (req, res) => {
+
+  try {
+
+    const deviceKey =
+      req.query.device_key;
+
+    const [rows] = await db.query(
+      `
+      SELECT *
+      FROM command_settings
+      WHERE device_key = ?
+      LIMIT 1
+      `,
+      [deviceKey]
+    );
+
+    if (rows.length === 0) {
+
+      return res.status(404).json({
+        success: false,
+        message: '설정 없음'
+      });
+    }
+
+    res.json(rows[0]);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      success: false
+    });
+  }
+});
+
+// =======================================
+// ❌ 404 핸들러
+// =======================================
+app.use((req, res) => {
+  console.log(`❌ 404 - 라우트 없음: ${req.method} ${req.originalUrl}`);
+
+  res.status(404).json({
+    success: false,
+    message: `라우트를 찾을 수 없습니다: ${req.method} ${req.originalUrl}`,
+  });
+});
+
+// =======================================
+// 🚀 서버 시작
+// =======================================
+server.listen(PORT, () => {
+  console.log(`\n🚀 서버 실행중: PORT ${PORT}`);
+  console.log('🌐 허용된 프론트 주소:', allowedOrigins);
+  console.log('📌 /sensor');
+  console.log('📌 /api/sensor/latest');
+  console.log('📌 /api/settings');
+  console.log('📌 /command');
+  console.log('📌 /command-settings');
+});
