@@ -441,7 +441,7 @@ app.get('/command', (req, res) => {
 
   res.send(command);
 
-  commands[deviceKey] = '';
+  //commands[deviceKey] = '';
 });
 
 // =======================================
